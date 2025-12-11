@@ -1,6 +1,6 @@
-const { createApp, ref, reactive, onMounted } = Vue;
+const { createApp, ref, reactive, onMounted, h } = Vue;
 
-createApp({
+const ImmichBridgeApp = {
     setup() {
         const loading = ref(true);
         const configured = ref(false);
@@ -95,85 +95,98 @@ createApp({
             }
         });
 
-        return {
-            loading,
-            configured,
-            error,
-            config,
-            albums,
-            selectedAlbum,
-            assets,
-            saveConfig,
-            selectAlbum,
-            openOriginal
+        return () => {
+            const children = [];
+
+            // Loading state
+            if (loading.value) {
+                children.push(h('div', { class: 'immich-loading' }, 'Loading...'));
+            }
+
+            // Error display
+            if (error.value) {
+                children.push(h('div', { class: 'immich-error' }, error.value));
+            }
+
+            // Setup form
+            if (!loading.value && !configured.value) {
+                children.push(
+                    h('div', { class: 'immich-setup' }, [
+                        h('h2', null, 'Immich Bridge Setup'),
+                        h('p', { class: 'immich-setup-desc' }, 'Connect your Immich instance to browse your photo library.'),
+                        h('label', null, [
+                            'Immich Base URL:',
+                            h('input', {
+                                value: config.baseUrl,
+                                placeholder: 'https://immich.example.com/api',
+                                onInput: (e) => { config.baseUrl = e.target.value; }
+                            })
+                        ]),
+                        h('label', null, [
+                            'Immich API Key:',
+                            h('input', {
+                                type: 'password',
+                                value: config.apiKey,
+                                placeholder: 'Your Immich API key',
+                                onInput: (e) => { config.apiKey = e.target.value; }
+                            })
+                        ]),
+                        h('button', { onClick: saveConfig }, 'Save Configuration')
+                    ])
+                );
+            }
+
+            // Browser view
+            if (configured.value && !loading.value) {
+                const albumItems = albums.value.map(album =>
+                    h('li', {
+                        key: album.id,
+                        class: { active: selectedAlbum.value && selectedAlbum.value.id === album.id },
+                        onClick: () => selectAlbum(album)
+                    }, `${album.title} (${album.assetCount})`)
+                );
+
+                const sidebar = h('div', { class: 'immich-sidebar' }, [
+                    h('h3', null, 'Albums'),
+                    h('ul', null, albumItems),
+                    albums.value.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No albums found.') : null
+                ]);
+
+                let assetsContent;
+                if (!selectedAlbum.value) {
+                    assetsContent = h('div', { class: 'immich-placeholder' }, [
+                        h('p', null, 'Select an album to view photos')
+                    ]);
+                } else {
+                    const assetItems = assets.value.map(asset =>
+                        h('div', {
+                            key: asset.id,
+                            class: 'immich-thumb',
+                            onClick: () => openOriginal(asset.id)
+                        }, [
+                            h('img', {
+                                src: `/apps/immich_nc_app/api/assets/${asset.id}/thumbnail`,
+                                alt: asset.fileName,
+                                loading: 'lazy'
+                            })
+                        ])
+                    );
+
+                    assetsContent = h('div', null, [
+                        h('h3', null, selectedAlbum.value.title),
+                        h('div', { class: 'immich-grid' }, assetItems),
+                        assets.value.length === 0 ? h('p', { class: 'immich-no-assets' }, 'No photos in this album.') : null
+                    ]);
+                }
+
+                const assetsPanel = h('div', { class: 'immich-assets' }, [assetsContent]);
+
+                children.push(h('div', { class: 'immich-browser' }, [sidebar, assetsPanel]));
+            }
+
+            return h('div', { class: 'immich-wrapper' }, children);
         };
-    },
+    }
+};
 
-    template: `
-    <div class="immich-wrapper">
-        <div v-if="loading" class="immich-loading">Loading...</div>
-
-        <div v-if="error" class="immich-error">
-            {{ error }}
-        </div>
-
-        <div v-if="!loading && !configured" class="immich-setup">
-            <h2>Immich Bridge Setup</h2>
-            <p class="immich-setup-desc">Connect your Immich instance to browse your photo library.</p>
-
-            <label>
-                Immich Base URL:
-                <input v-model="config.baseUrl" placeholder="https://immich.example.com/api" />
-            </label>
-
-            <label>
-                Immich API Key:
-                <input type="password" v-model="config.apiKey" placeholder="Your Immich API key" />
-            </label>
-
-            <button @click="saveConfig">Save Configuration</button>
-        </div>
-
-        <div v-if="configured && !loading" class="immich-browser">
-            <div class="immich-sidebar">
-                <h3>Albums</h3>
-                <ul>
-                    <li 
-                      v-for="album in albums" 
-                      :key="album.id" 
-                      @click="selectAlbum(album)"
-                      :class="{ active: selectedAlbum && selectedAlbum.id === album.id }"
-                    >
-                        {{ album.title }} ({{ album.assetCount }})
-                    </li>
-                </ul>
-                <p v-if="albums.length === 0" class="immich-no-albums">No albums found.</p>
-            </div>
-
-            <div class="immich-assets">
-                <div v-if="!selectedAlbum" class="immich-placeholder">
-                    <p>Select an album to view photos</p>
-                </div>
-                <div v-else>
-                    <h3>{{ selectedAlbum.title }}</h3>
-                    <div class="immich-grid">
-                        <div 
-                          class="immich-thumb" 
-                          v-for="asset in assets" 
-                          :key="asset.id"
-                          @click="openOriginal(asset.id)"
-                        >
-                            <img 
-                              :src="'/apps/immich_nc_app/api/assets/' + asset.id + '/thumbnail'"
-                              :alt="asset.fileName"
-                              loading="lazy"
-                            />
-                        </div>
-                    </div>
-                    <p v-if="assets.length === 0" class="immich-no-assets">No photos in this album.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    `
-}).mount("#immich-bridge-app");
+createApp(ImmichBridgeApp).mount("#immich-bridge-app");
