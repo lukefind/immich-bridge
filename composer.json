@@ -1,0 +1,14 @@
+{
+    "name": "nextcloud/immich_bridge",
+    "description": "Browse your Immich photo library from within Nextcloud",
+    "type": "project",
+    "license": "AGPL-3.0-or-later",
+    "autoload": {
+        "psr-4": {
+            "OCA\\ImmichBridge\\": "lib/"
+        }
+    },
+    "require": {
+        "php": ">=8.0"
+    }
+}

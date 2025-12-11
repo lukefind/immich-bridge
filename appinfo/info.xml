@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>immich_bridge</id>
+    <name>Immich Bridge</name>
+    <summary>Browse your Immich photo library from within Nextcloud</summary>
+    <description><![CDATA[
+Immich Bridge allows you to connect your Nextcloud instance to an Immich server.
+Browse albums and view photos directly from the Nextcloud interface.
+
+Features:
+- Configure Immich connection (base URL + API key)
+- Browse albums
+- View thumbnails and original images
+- Read-only access (V1)
+    ]]></description>
+    <version>1.0.0</version>
+    <licence>agpl</licence>
+    <author>Immich Bridge Developer</author>
+    <namespace>ImmichBridge</namespace>
+    <category>multimedia</category>
+    <bugs>https://github.com/example/immich_bridge/issues</bugs>
+    <dependencies>
+        <nextcloud min-version="27" max-version="29"/>
+    </dependencies>
+    <navigations>
+        <navigation>
+            <name>Immich Bridge</name>
+            <route>immich_bridge.page.index</route>
+            <icon>app.svg</icon>
+            <order>10</order>
+        </navigation>
+    </navigations>
+</info>
