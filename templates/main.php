@@ -3,11 +3,10 @@
  * @var array $_
  * @var \OCP\IL10N $l
  */
+style('immich_nc_app', 'style');
 ?>
 
 <div id="immich-bridge-app"></div>
 
-<link rel="stylesheet" href="<?php p($_['appWebPath']); ?>/css/style.css">
-
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-<script src="<?php p($_['appWebPath']); ?>/js/main.js"></script>
+<script src="<?php print_unescaped(\OC::$server->getURLGenerator()->linkTo('immich_nc_app', 'js/main.js')); ?>"></script>
