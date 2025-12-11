@@ -1,15 +1,29 @@
+/* Full page layout for Nextcloud */
+#app-content-vue,
+#app-content,
+#content {
+    height: 100% !important;
+    overflow: hidden !important;
+}
+
 #immich-bridge-app {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     height: 100%;
-    min-height: calc(100vh - 50px);
+    overflow: hidden;
 }
 
 .immich-wrapper {
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-height: calc(100vh - 50px);
+    width: 100%;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: #f5f5f5;
+    background: #1a1a1a;
+    color: #fff;
 }
 
 /* Header */
@@ -18,8 +32,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 12px 20px;
-    background: #fff;
-    border-bottom: 1px solid #e0e0e0;
+    background: #212121;
+    border-bottom: 1px solid #333;
     flex-shrink: 0;
 }
 
@@ -29,7 +43,7 @@
     gap: 8px;
     font-size: 18px;
     font-weight: 600;
-    color: #333;
+    color: #fff;
 }
 
 .immich-logo {
@@ -192,8 +206,8 @@
 .immich-sidebar {
     width: 280px;
     min-width: 280px;
-    background: #fff;
-    border-right: 1px solid #e0e0e0;
+    background: #212121;
+    border-right: 1px solid #333;
     padding: 16px 0;
     overflow-y: auto;
 }
@@ -201,8 +215,8 @@
 .immich-sidebar h3 {
     margin: 0 16px 12px;
     padding-bottom: 12px;
-    border-bottom: 1px solid #eee;
-    color: #333;
+    border-bottom: 1px solid #333;
+    color: #fff;
     font-size: 18px;
 }
 
@@ -215,20 +229,20 @@
 .immich-sidebar li {
     padding: 10px 16px;
     cursor: pointer;
-    color: #444;
+    color: #ccc;
     transition: background 0.15s;
     border-left: 3px solid transparent;
 }
 
 .immich-sidebar li:hover {
-    background: #f5f5f5;
+    background: #2a2a2a;
 }
 
 .immich-sidebar li.active {
-    background: #e7f3ff;
-    border-left-color: #0082c9;
+    background: #333;
+    border-left-color: #4285f4;
     font-weight: 600;
-    color: #0082c9;
+    color: #fff;
 }
 
 .immich-no-albums {
@@ -242,12 +256,12 @@
     flex: 1;
     padding: 20px;
     overflow-y: auto;
-    background: #fafafa;
+    background: #1a1a1a;
 }
 
 .immich-assets h3 {
     margin: 0 0 16px 0;
-    color: #333;
+    color: #fff;
     font-size: 20px;
 }
 
@@ -262,23 +276,23 @@
 
 .immich-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
 }
 
 .immich-thumb {
     position: relative;
     aspect-ratio: 1;
     overflow: hidden;
-    border-radius: 8px;
+    border-radius: 4px;
     cursor: pointer;
-    background: #e0e0e0;
+    background: #333;
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .immich-thumb:hover {
-    transform: scale(1.02);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: scale(1.03);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .immich-thumb img {
@@ -305,10 +319,32 @@
         min-width: 100%;
         max-height: 200px;
         border-right: none;
-        border-bottom: 1px solid #e0e0e0;
+        border-bottom: 1px solid #333;
     }
 
     .immich-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     }
+}
+
+/* Scrollbar styling for dark theme */
+.immich-sidebar::-webkit-scrollbar,
+.immich-assets::-webkit-scrollbar {
+    width: 8px;
+}
+
+.immich-sidebar::-webkit-scrollbar-track,
+.immich-assets::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+.immich-sidebar::-webkit-scrollbar-thumb,
+.immich-assets::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+
+.immich-sidebar::-webkit-scrollbar-thumb:hover,
+.immich-assets::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
