@@ -48,6 +48,7 @@ class ApiController extends Controller {
 
     /**
      * @NoAdminRequired
+     * @NoCSRFRequired
      *
      * Get the current user's Immich configuration
      *
@@ -117,6 +118,7 @@ class ApiController extends Controller {
 
     /**
      * @NoAdminRequired
+     * @NoCSRFRequired
      *
      * Get all albums from Immich
      *
@@ -146,6 +148,7 @@ class ApiController extends Controller {
 
     /**
      * @NoAdminRequired
+     * @NoCSRFRequired
      *
      * Get a specific album from Immich
      *
@@ -171,6 +174,7 @@ class ApiController extends Controller {
 
     /**
      * @NoAdminRequired
+     * @NoCSRFRequired
      *
      * Get assets in an album
      *
