@@ -5,6 +5,7 @@ const ImmichBridgeApp = {
         const loading = ref(true);
         const configured = ref(false);
         const error = ref(null);
+        const successMessage = ref(null);
 
         const config = reactive({
             baseUrl: "",
@@ -16,9 +17,9 @@ const ImmichBridgeApp = {
         const assets = ref([]);
 
         const api = async (path, options = {}) => {
-            // Add CSRF token for POST requests
+            // Add CSRF token for POST/DELETE requests
             const headers = options.headers || {};
-            if (options.method === 'POST' && typeof OC !== 'undefined') {
+            if ((options.method === 'POST' || options.method === 'DELETE') && typeof OC !== 'undefined') {
                 headers['requesttoken'] = OC.requestToken;
             }
             
@@ -55,6 +56,7 @@ const ImmichBridgeApp = {
         const saveConfig = async () => {
             loading.value = true;
             error.value = null;
+            successMessage.value = null;
             try {
                 await api(`/config`, {
                     method: "POST",
@@ -65,7 +67,29 @@ const ImmichBridgeApp = {
                     })
                 });
                 configured.value = true;
+                successMessage.value = "Configuration saved successfully!";
                 await loadAlbums();
+            } catch (err) {
+                error.value = err.message;
+            } finally {
+                loading.value = false;
+            }
+        };
+
+        const logout = async () => {
+            if (!confirm('Are you sure you want to disconnect from Immich?')) {
+                return;
+            }
+            loading.value = true;
+            error.value = null;
+            try {
+                await api(`/config`, { method: "DELETE" });
+                configured.value = false;
+                config.baseUrl = "";
+                config.apiKey = "";
+                albums.value = [];
+                selectedAlbum.value = null;
+                assets.value = [];
             } catch (err) {
                 error.value = err.message;
             } finally {
@@ -76,6 +100,7 @@ const ImmichBridgeApp = {
         const loadAlbums = async () => {
             try {
                 albums.value = await api(`/albums`);
+                error.value = null;
             } catch (err) {
                 error.value = err.message;
             }
@@ -95,6 +120,11 @@ const ImmichBridgeApp = {
             window.open(`/apps/immich_nc_app/api/assets/${assetId}/original`, '_blank');
         };
 
+        const refreshAlbums = async () => {
+            error.value = null;
+            await loadAlbums();
+        };
+
         onMounted(async () => {
             await loadConfig();
             if (configured.value) {
@@ -105,6 +135,30 @@ const ImmichBridgeApp = {
         return () => {
             const children = [];
 
+            // Header with actions (only when configured)
+            if (configured.value && !loading.value) {
+                children.push(
+                    h('div', { class: 'immich-header' }, [
+                        h('div', { class: 'immich-header-title' }, [
+                            h('span', { class: 'immich-logo' }, '📷'),
+                            h('span', null, 'Immich Bridge')
+                        ]),
+                        h('div', { class: 'immich-header-actions' }, [
+                            h('button', { 
+                                class: 'immich-btn immich-btn-secondary',
+                                onClick: refreshAlbums,
+                                title: 'Refresh albums'
+                            }, '↻ Refresh'),
+                            h('button', { 
+                                class: 'immich-btn immich-btn-danger',
+                                onClick: logout,
+                                title: 'Disconnect from Immich'
+                            }, 'Disconnect')
+                        ])
+                    ])
+                );
+            }
+
             // Loading state
             if (loading.value) {
                 children.push(h('div', { class: 'immich-loading' }, 'Loading...'));
@@ -113,6 +167,11 @@ const ImmichBridgeApp = {
             // Error display
             if (error.value) {
                 children.push(h('div', { class: 'immich-error' }, error.value));
+            }
+
+            // Success message
+            if (successMessage.value) {
+                children.push(h('div', { class: 'immich-success' }, successMessage.value));
             }
 
             // Setup form
@@ -125,10 +184,11 @@ const ImmichBridgeApp = {
                             'Immich Base URL:',
                             h('input', {
                                 value: config.baseUrl,
-                                placeholder: 'https://immich.example.com/api',
+                                placeholder: 'https://photos.example.com/api',
                                 onInput: (e) => { config.baseUrl = e.target.value; }
                             })
                         ]),
+                        h('p', { class: 'immich-hint' }, 'Include /api at the end of your Immich URL'),
                         h('label', null, [
                             'Immich API Key:',
                             h('input', {
@@ -138,7 +198,8 @@ const ImmichBridgeApp = {
                                 onInput: (e) => { config.apiKey = e.target.value; }
                             })
                         ]),
-                        h('button', { onClick: saveConfig }, 'Save Configuration')
+                        h('p', { class: 'immich-hint' }, 'Generate an API key in Immich: Account Settings → API Keys'),
+                        h('button', { class: 'immich-btn immich-btn-primary', onClick: saveConfig }, 'Connect to Immich')
                     ])
                 );
             }
@@ -156,7 +217,7 @@ const ImmichBridgeApp = {
                 const sidebar = h('div', { class: 'immich-sidebar' }, [
                     h('h3', null, 'Albums'),
                     h('ul', null, albumItems),
-                    albums.value.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No albums found.') : null
+                    albums.value.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No albums found. Create albums in Immich first.') : null
                 ]);
 
                 let assetsContent;

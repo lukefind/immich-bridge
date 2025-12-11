@@ -50,4 +50,17 @@ class UserConfigService {
             return $this->mapper->insert($config);
         }
     }
+
+    /**
+     * Delete configuration for a specific user
+     *
+     * @param string $userId
+     * @return void
+     */
+    public function deleteConfigForUser(string $userId): void {
+        $existingConfig = $this->mapper->findByUserId($userId);
+        if ($existingConfig !== null) {
+            $this->mapper->delete($existingConfig);
+        }
+    }
 }

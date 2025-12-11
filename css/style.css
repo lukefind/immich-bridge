@@ -5,10 +5,82 @@
 
 .immich-wrapper {
     display: flex;
+    flex-direction: column;
     height: 100%;
     min-height: calc(100vh - 50px);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background: #f5f5f5;
+}
+
+/* Header */
+.immich-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+}
+
+.immich-header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.immich-logo {
+    font-size: 24px;
+}
+
+.immich-header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Buttons */
+.immich-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+}
+
+.immich-btn:hover {
+    opacity: 0.9;
+}
+
+.immich-btn-primary {
+    background: #0082c9;
+    color: #fff;
+}
+
+.immich-btn-primary:hover {
+    background: #006ba1;
+}
+
+.immich-btn-secondary {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.immich-btn-secondary:hover {
+    background: #d0d0d0;
+}
+
+.immich-btn-danger {
+    background: #dc3545;
+    color: #fff;
+}
+
+.immich-btn-danger:hover {
+    background: #c82333;
 }
 
 .immich-loading {
@@ -28,6 +100,21 @@
     margin: 12px;
     border-radius: 8px;
     border-left: 4px solid #b00020;
+}
+
+.immich-success {
+    color: #155724;
+    background: #d4edda;
+    padding: 12px 16px;
+    margin: 12px;
+    border-radius: 8px;
+    border-left: 4px solid #28a745;
+}
+
+.immich-hint {
+    font-size: 12px;
+    color: #888;
+    margin: -8px 0 16px 0;
 }
 
 /* Setup Form */
@@ -97,7 +184,8 @@
 .immich-browser {
     display: flex;
     width: 100%;
-    height: 100%;
+    flex: 1;
+    overflow: hidden;
 }
 
 /* Sidebar */

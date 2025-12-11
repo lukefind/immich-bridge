@@ -118,6 +118,30 @@ class ApiController extends Controller {
 
     /**
      * @NoAdminRequired
+     *
+     * Delete the user's Immich configuration (logout)
+     *
+     * @return JSONResponse
+     */
+    public function deleteConfig(): JSONResponse {
+        $userId = $this->getUserId();
+        if ($userId === null) {
+            return new JSONResponse(['error' => 'Not authenticated'], Http::STATUS_UNAUTHORIZED);
+        }
+
+        try {
+            $this->configService->deleteConfigForUser($userId);
+            return new JSONResponse(['success' => true]);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to delete Immich config: ' . $e->getMessage(), [
+                'app' => 'immich_nc_app',
+            ]);
+            return new JSONResponse(['error' => 'Failed to delete configuration'], Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
      * @NoCSRFRequired
      *
      * Get all albums from Immich
