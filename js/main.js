@@ -16,7 +16,7 @@ createApp({
         const assets = ref([]);
 
         const api = async (path, options = {}) => {
-            const res = await fetch(`/apps/immich_bridge/api${path}`, {
+            const res = await fetch(`/apps/immich_nc_app/api${path}`, {
                 credentials: "same-origin",
                 ...options
             });
@@ -85,7 +85,7 @@ createApp({
         };
 
         const openOriginal = (assetId) => {
-            window.open(`/apps/immich_bridge/api/assets/${assetId}/original`, '_blank');
+            window.open(`/apps/immich_nc_app/api/assets/${assetId}/original`, '_blank');
         };
 
         onMounted(async () => {
@@ -164,7 +164,7 @@ createApp({
                           @click="openOriginal(asset.id)"
                         >
                             <img 
-                              :src="'/apps/immich_bridge/api/assets/' + asset.id + '/thumbnail'"
+                              :src="'/apps/immich_nc_app/api/assets/' + asset.id + '/thumbnail'"
                               :alt="asset.fileName"
                               loading="lazy"
                             />
