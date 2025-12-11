@@ -348,3 +348,114 @@
 .immich-assets::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
+
+/* Lightbox */
+.immich-lightbox {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.immich-lightbox-content {
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.immich-lightbox-content img {
+    max-width: 90vw;
+    max-height: calc(90vh - 40px);
+    object-fit: contain;
+}
+
+.immich-lightbox-info {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 12px 0;
+    color: #aaa;
+    font-size: 14px;
+}
+
+.immich-lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 32px;
+    cursor: pointer;
+    padding: 8px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.immich-lightbox-close:hover {
+    opacity: 1;
+}
+
+.immich-lightbox-prev,
+.immich-lightbox-next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    font-size: 48px;
+    cursor: pointer;
+    padding: 20px 16px;
+    opacity: 0.7;
+    transition: opacity 0.2s, background 0.2s;
+    border-radius: 4px;
+}
+
+.immich-lightbox-prev:hover,
+.immich-lightbox-next:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.immich-lightbox-prev:disabled,
+.immich-lightbox-next:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+}
+
+.immich-lightbox-prev {
+    left: 20px;
+}
+
+.immich-lightbox-next {
+    right: 20px;
+}
+
+.immich-lightbox-newtab {
+    position: absolute;
+    top: 20px;
+    right: 70px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 8px 12px;
+    opacity: 0.7;
+    transition: opacity 0.2s, background 0.2s;
+    border-radius: 4px;
+}
+
+.immich-lightbox-newtab:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.2);
+}

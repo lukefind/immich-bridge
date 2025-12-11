@@ -15,6 +15,11 @@ const ImmichBridgeApp = {
         const albums = ref([]);
         const selectedAlbum = ref(null);
         const assets = ref([]);
+        
+        // Lightbox state
+        const lightboxOpen = ref(false);
+        const lightboxAsset = ref(null);
+        const lightboxIndex = ref(0);
 
         const api = async (path, options = {}) => {
             // Add CSRF token for POST/DELETE requests
@@ -116,8 +121,42 @@ const ImmichBridgeApp = {
             }
         };
 
-        const openOriginal = (assetId) => {
-            window.open(`/apps/immich_nc_app/api/assets/${assetId}/original`, '_blank');
+        const openLightbox = (asset, index) => {
+            lightboxAsset.value = asset;
+            lightboxIndex.value = index;
+            lightboxOpen.value = true;
+        };
+
+        const closeLightbox = () => {
+            lightboxOpen.value = false;
+            lightboxAsset.value = null;
+        };
+
+        const nextImage = () => {
+            if (lightboxIndex.value < assets.value.length - 1) {
+                lightboxIndex.value++;
+                lightboxAsset.value = assets.value[lightboxIndex.value];
+            }
+        };
+
+        const prevImage = () => {
+            if (lightboxIndex.value > 0) {
+                lightboxIndex.value--;
+                lightboxAsset.value = assets.value[lightboxIndex.value];
+            }
+        };
+
+        const handleKeydown = (e) => {
+            if (!lightboxOpen.value) return;
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowRight') nextImage();
+            if (e.key === 'ArrowLeft') prevImage();
+        };
+
+        const openInNewTab = () => {
+            if (lightboxAsset.value) {
+                window.open(`/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/original`, '_blank');
+            }
         };
 
         const refreshAlbums = async () => {
@@ -130,6 +169,8 @@ const ImmichBridgeApp = {
             if (configured.value) {
                 await loadAlbums();
             }
+            // Add keyboard listener for lightbox
+            document.addEventListener('keydown', handleKeydown);
         });
 
         return () => {
@@ -226,11 +267,11 @@ const ImmichBridgeApp = {
                         h('p', null, 'Select an album to view photos')
                     ]);
                 } else {
-                    const assetItems = assets.value.map(asset =>
+                    const assetItems = assets.value.map((asset, index) =>
                         h('div', {
                             key: asset.id,
                             class: 'immich-thumb',
-                            onClick: () => openOriginal(asset.id)
+                            onClick: () => openLightbox(asset, index)
                         }, [
                             h('img', {
                                 src: `/apps/immich_nc_app/api/assets/${asset.id}/thumbnail`,
@@ -250,6 +291,46 @@ const ImmichBridgeApp = {
                 const assetsPanel = h('div', { class: 'immich-assets' }, [assetsContent]);
 
                 children.push(h('div', { class: 'immich-browser' }, [sidebar, assetsPanel]));
+            }
+
+            // Lightbox modal
+            if (lightboxOpen.value && lightboxAsset.value) {
+                children.push(
+                    h('div', { 
+                        class: 'immich-lightbox',
+                        onClick: (e) => { if (e.target.classList.contains('immich-lightbox')) closeLightbox(); }
+                    }, [
+                        h('div', { class: 'immich-lightbox-content' }, [
+                            h('img', {
+                                src: `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/original`,
+                                alt: lightboxAsset.value.fileName
+                            }),
+                            h('div', { class: 'immich-lightbox-info' }, [
+                                h('span', null, lightboxAsset.value.fileName),
+                                h('span', null, `${lightboxIndex.value + 1} / ${assets.value.length}`)
+                            ])
+                        ]),
+                        h('button', { 
+                            class: 'immich-lightbox-close',
+                            onClick: closeLightbox
+                        }, '✕'),
+                        h('button', { 
+                            class: 'immich-lightbox-prev',
+                            onClick: prevImage,
+                            disabled: lightboxIndex.value === 0
+                        }, '‹'),
+                        h('button', { 
+                            class: 'immich-lightbox-next',
+                            onClick: nextImage,
+                            disabled: lightboxIndex.value === assets.value.length - 1
+                        }, '›'),
+                        h('button', { 
+                            class: 'immich-lightbox-newtab',
+                            onClick: openInNewTab,
+                            title: 'Open in new tab'
+                        }, '↗')
+                    ])
+                );
             }
 
             return h('div', { class: 'immich-wrapper' }, children);
