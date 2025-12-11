@@ -83,7 +83,7 @@ const ImmichBridgeApp = {
             loading.value = true;
             error.value = null;
             try {
-                await api(`/config`, { method: "DELETE" });
+                await api(`/config/delete`, { method: "POST" });
                 configured.value = false;
                 config.baseUrl = "";
                 config.apiKey = "";

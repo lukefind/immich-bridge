@@ -10,7 +10,7 @@ return [
         // API routes
         ['name' => 'api#getConfig', 'url' => '/api/config', 'verb' => 'GET'],
         ['name' => 'api#setConfig', 'url' => '/api/config', 'verb' => 'POST'],
-        ['name' => 'api#deleteConfig', 'url' => '/api/config', 'verb' => 'DELETE'],
+        ['name' => 'api#deleteConfig', 'url' => '/api/config/delete', 'verb' => 'POST'],
         ['name' => 'api#getAlbums', 'url' => '/api/albums', 'verb' => 'GET'],
         ['name' => 'api#getAlbum', 'url' => '/api/albums/{albumId}', 'verb' => 'GET'],
         ['name' => 'api#getAssets', 'url' => '/api/albums/{albumId}/assets', 'verb' => 'GET'],
