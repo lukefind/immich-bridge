@@ -16,9 +16,16 @@ const ImmichBridgeApp = {
         const assets = ref([]);
 
         const api = async (path, options = {}) => {
+            // Add CSRF token for POST requests
+            const headers = options.headers || {};
+            if (options.method === 'POST' && typeof OC !== 'undefined') {
+                headers['requesttoken'] = OC.requestToken;
+            }
+            
             const res = await fetch(`/apps/immich_nc_app/api${path}`, {
                 credentials: "same-origin",
-                ...options
+                ...options,
+                headers
             });
 
             if (!res.ok) {
