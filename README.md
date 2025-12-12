@@ -2,30 +2,37 @@
 
 Browse your Immich photo library directly from within Nextcloud.
 
+## Nextcloud AIO Playbook (read first)
+
+See: `docs/nextcloud-aio-playbook.md`
+
 ## Features
 
 - **Connect to Immich**: Configure your Immich server URL and API key
 - **Browse Albums**: View all your Immich albums in a sidebar
 - **View Photos**: See thumbnails in a responsive grid layout
-- **View Originals**: Click any thumbnail to open the full-resolution image
+- **View Originals**: View originals in an in-app lightbox (with keyboard navigation)
+- **Disconnect**: Clear your saved config and reconfigure
 
 ## Requirements
 
-- Nextcloud 27, 28, or 29
+- Nextcloud 27-32
 - PHP 8.0 or higher
 - An Immich server with API access
 
 ## Installation
 
-1. Copy the `immich_bridge` folder to your Nextcloud `apps/` directory
+1. Copy the `immich_nc_app` folder to your Nextcloud `apps/` directory
 2. Enable the app via the Nextcloud Apps page or run:
    ```bash
-   php occ app:enable immich_bridge
+   php occ app:enable immich_nc_app
    ```
-3. Run database migrations:
-   ```bash
-   php occ migrations:migrate immich_bridge
-   ```
+
+Notes for Nextcloud AIO:
+
+- The custom apps path is typically:
+  - `/var/lib/docker/volumes/nextcloud_aio_nextcloud/_data/custom_apps/immich_nc_app/`
+- Some AIO images may not include `occ migrations:migrate`. If you don’t have that command, just enable the app and access it; schema changes are handled by Nextcloud on upgrade/first access.
 
 ## Configuration
 
@@ -51,6 +58,7 @@ The app exposes the following internal API endpoints:
 |--------|----------|-------------|
 | GET | `/api/config` | Get current configuration status |
 | POST | `/api/config` | Save Immich configuration |
+| POST | `/api/config/delete` | Delete saved config (disconnect) |
 | GET | `/api/albums` | List all albums |
 | GET | `/api/albums/{id}` | Get album details |
 | GET | `/api/albums/{id}/assets` | List assets in an album |
