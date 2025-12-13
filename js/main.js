@@ -166,8 +166,7 @@ const ImmichBridgeApp = {
             try {
                 const params = new URLSearchParams();
                 if (photoFilter.isFavorite) params.set('isFavorite', 'true');
-                if (photoFilter.rating > 0) params.set('rating', String(photoFilter.rating));
-                if (photoFilter.tagId) params.set('tagId', photoFilter.tagId);
+                params.set('take', '200'); // Load more photos
                 
                 const result = await api(`/assets?${params.toString()}`);
                 assets.value = result.assets || [];
@@ -239,15 +238,19 @@ const ImmichBridgeApp = {
         const saveToNextcloud = async () => {
             if (!lightboxAsset.value) return;
             
+            // Capture asset info before any async operations (lightbox may close)
+            const assetId = lightboxAsset.value.id;
+            const fileName = lightboxAsset.value.fileName;
+            
             const doSave = async (targetPath) => {
                 try {
-                    const response = await fetch(`/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/save-to-nextcloud`, {
+                    const response = await fetch(`/apps/immich_nc_app/api/assets/${assetId}/save-to-nextcloud`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'requesttoken': typeof OC !== 'undefined' ? OC.requestToken : ''
                         },
-                        body: JSON.stringify({ targetPath, fileName: lightboxAsset.value.fileName })
+                        body: JSON.stringify({ targetPath, fileName })
                     });
                     if (response.ok) {
                         const data = await response.json();
@@ -366,24 +369,21 @@ const ImmichBridgeApp = {
                         h('div', {
                             class: ['immich-nav-link', activeView.value === 'photos' ? 'active' : null, !configured.value ? 'disabled' : null],
                             onClick: configured.value ? showAllPhotos : null
-                        }, [h('span', { class: 'nav-icon' }, '🖼'), 'All Photos']),
+                        }, 'All Photos'),
                         h('div', {
                             class: ['immich-nav-link', activeView.value === 'albums' ? 'active' : null, !configured.value ? 'disabled' : null],
                             onClick: configured.value ? showAlbums : null
-                        }, [h('span', { class: 'nav-icon' }, '📁'), 'Albums']),
+                        }, 'Albums'),
                         h('div', {
                             class: ['immich-nav-link', activeView.value === 'settings' ? 'active' : null],
                             onClick: showSettings
-                        }, [h('span', { class: 'nav-icon' }, '⚙'), 'Settings']),
+                        }, 'Settings'),
                     ])
                 ]);
 
                 const sidebarHeader = h('div', { class: 'immich-sidebar-header' }, [
-                    h('div', { class: 'immich-sidebar-title' }, [
-                        h('span', { class: 'immich-sidebar-logo' }, '🖼'),
-                        'Immich Bridge'
-                    ]),
-                    isMobile.value ? h('button', { class: 'immich-sidebar-close', onClick: closeSidebar, title: 'Close menu' }, '✕') : null
+                    h('div', { class: 'immich-sidebar-title' }, 'Immich Bridge'),
+                    isMobile.value ? h('button', { class: 'immich-sidebar-close', onClick: closeSidebar, title: 'Close menu' }, '×') : null
                 ]);
 
                 sidebarContent.push(sidebarHeader);
@@ -486,32 +486,12 @@ const ImmichBridgeApp = {
                                 checked: photoFilter.isFavorite,
                                 onChange: (e) => { photoFilter.isFavorite = e.target.checked; loadAllPhotos(); }
                             }),
-                            '❤️ Favorites only'
+                            'Favorites only'
                         ]),
-                        h('select', {
-                            class: 'immich-filter-select',
-                            value: photoFilter.rating,
-                            onChange: (e) => { photoFilter.rating = parseInt(e.target.value); loadAllPhotos(); }
-                        }, [
-                            h('option', { value: '0' }, 'Any rating'),
-                            h('option', { value: '1' }, '⭐ 1+'),
-                            h('option', { value: '2' }, '⭐⭐ 2+'),
-                            h('option', { value: '3' }, '⭐⭐⭐ 3+'),
-                            h('option', { value: '4' }, '⭐⭐⭐⭐ 4+'),
-                            h('option', { value: '5' }, '⭐⭐⭐⭐⭐ 5'),
-                        ]),
-                        tags.value.length > 0 ? h('select', {
-                            class: 'immich-filter-select',
-                            value: photoFilter.tagId,
-                            onChange: (e) => { photoFilter.tagId = e.target.value; loadAllPhotos(); }
-                        }, [
-                            h('option', { value: '' }, 'All tags'),
-                            ...tags.value.map(t => h('option', { value: t.id }, t.name))
-                        ]) : null,
-                        h('button', {
+                        photoFilter.isFavorite ? h('button', {
                             class: 'immich-filter-btn',
-                            onClick: () => { photoFilter.isFavorite = false; photoFilter.rating = 0; photoFilter.tagId = ''; loadAllPhotos(); }
-                        }, 'Clear filters')
+                            onClick: () => { photoFilter.isFavorite = false; loadAllPhotos(); }
+                        }, 'Clear') : null
                     ]);
 
                     const assetItems = assets.value.map((asset, index) =>

@@ -169,34 +169,24 @@ class ImmichClient {
     }
 
     /**
-     * Search/list all assets with optional filters
+     * Get all assets (timeline view)
      *
-     * @param array $filters Optional filters (isFavorite, rating, takenAfter, takenBefore, etc.)
-     * @param int $page Page number (1-indexed)
-     * @param int $size Page size
+     * @param array $filters Optional filters (isFavorite, etc.)
+     * @param int $skip Number of assets to skip
+     * @param int $take Number of assets to take
      * @return array
      */
-    public function searchAssets(array $filters = [], int $page = 1, int $size = 100): array {
+    public function getAllAssets(array $filters = [], int $skip = 0, int $take = 100): array {
         $params = [
-            'page' => $page,
-            'size' => $size,
-            'order' => 'desc',
+            'skip' => $skip,
+            'take' => $take,
         ];
 
         if (isset($filters['isFavorite']) && $filters['isFavorite']) {
             $params['isFavorite'] = 'true';
         }
-        if (isset($filters['rating']) && $filters['rating'] > 0) {
-            $params['rating'] = (int)$filters['rating'];
-        }
-        if (!empty($filters['takenAfter'])) {
-            $params['takenAfter'] = $filters['takenAfter'];
-        }
-        if (!empty($filters['takenBefore'])) {
-            $params['takenBefore'] = $filters['takenBefore'];
-        }
 
-        return $this->get('search/metadata?' . http_build_query($params));
+        return $this->get('assets?' . http_build_query($params));
     }
 
     /**
