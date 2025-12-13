@@ -724,9 +724,10 @@ const ImmichBridgeApp = {
                         ])
                     );
 
-                    // Build timeline scroller - vertical list of years/months on the right side
+                    // Build timeline scroller - thin strip on right edge (only show subset of years)
+                    const yearsToShow = availableYears.value.filter((_, i) => i % 3 === 0 || i === availableYears.value.length - 1);
                     const timelineScroller = h('div', { class: 'immich-timeline-scroller' }, 
-                        availableYears.value.map(year => 
+                        yearsToShow.map(year => 
                             h('div', {
                                 key: year,
                                 class: ['immich-timeline-year', photoFilter.year == year ? 'active' : ''].filter(Boolean).join(' '),
@@ -734,7 +735,7 @@ const ImmichBridgeApp = {
                                     photoFilter.year = photoFilter.year == year ? null : year;
                                     loadAllPhotos();
                                 }
-                            }, year)
+                            }, String(year).slice(-2)) // Show only last 2 digits like '25, '24, etc
                         )
                     );
 
@@ -753,13 +754,9 @@ const ImmichBridgeApp = {
                             h('span', { class: 'immich-photo-count' }, `${assets.value.length}${totalPhotos.value > assets.value.length ? ' of ' + totalPhotos.value : ''} photos`)
                         ]),
                         filterBar,
-                        h('div', { class: 'immich-photos-container' }, [
-                            h('div', { class: 'immich-photos-grid-wrapper' }, [
-                                h('div', { class: 'immich-grid' }, assetItems),
-                                loadMoreBtn
-                            ]),
-                            availableYears.value.length > 0 ? timelineScroller : null
-                        ]),
+                        h('div', { class: 'immich-grid' }, assetItems),
+                        loadMoreBtn,
+                        availableYears.value.length > 0 ? timelineScroller : null,
                         assets.value.length === 0 ? h('p', { class: 'immich-no-assets' }, 'No photos found with current filters.') : null
                     ];
                 }
