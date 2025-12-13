@@ -1,18 +1,19 @@
-/* Full page layout for Nextcloud */
-#app-content-vue,
-#app-content,
-#content {
+/* Full page layout for Nextcloud (scoped to this app) */
+.app-immich_nc_app #app-content-vue,
+.app-immich_nc_app #app-content,
+.app-immich_nc_app #content {
     height: 100% !important;
     overflow: hidden !important;
 }
 
+.immich-btn-wide {
+    min-width: 120px;
+}
+
 #immich-bridge-app {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
     height: 100%;
+    min-height: calc(100vh - 50px);
+    width: 100%;
     overflow: hidden;
 }
 
@@ -53,10 +54,12 @@
 .immich-header-actions {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 /* Buttons */
 .immich-btn {
+    min-height: 36px;
     padding: 8px 16px;
     border: none;
     border-radius: 6px;
@@ -68,6 +71,11 @@
 
 .immich-btn:hover {
     opacity: 0.9;
+}
+
+.immich-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .immich-btn-primary {
@@ -202,6 +210,106 @@
     overflow: hidden;
 }
 
+/* Sidebar nav */
+.immich-nav {
+    display: flex;
+    padding: 8px 12px;
+    gap: 8px;
+    border-bottom: 1px solid #333;
+}
+
+.immich-nav-item {
+    flex: 1;
+    min-height: 36px;
+    padding: 8px 10px;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    color: #ddd;
+    cursor: pointer;
+}
+
+.immich-nav-item:hover {
+    background: #333;
+}
+
+.immich-nav-item.active {
+    background: #4285f4;
+    border-color: #4285f4;
+    color: #fff;
+    font-weight: 600;
+}
+
+.immich-nav-item:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.immich-sidebar-section {
+    padding-top: 8px;
+}
+
+.immich-search {
+    width: calc(100% - 32px);
+    margin: 0 16px 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #1a1a1a;
+    color: #fff;
+    box-sizing: border-box;
+}
+
+.immich-search:focus {
+    outline: none;
+    border-color: #4285f4;
+    box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+}
+
+.immich-main-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.immich-settings {
+    max-width: 680px;
+    margin: 20px auto;
+    padding: 20px;
+    background: #212121;
+    border: 1px solid #333;
+    border-radius: 12px;
+}
+
+.immich-settings h2 {
+    margin: 0 0 8px 0;
+}
+
+.immich-settings label {
+    display: block;
+    margin-top: 16px;
+    font-weight: 600;
+}
+
+.immich-settings input {
+    width: 100%;
+    padding: 10px 12px;
+    margin-top: 6px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #1a1a1a;
+    color: #fff;
+    box-sizing: border-box;
+}
+
+.immich-settings-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
 /* Sidebar */
 .immich-sidebar {
     width: 280px;
@@ -310,6 +418,21 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    .immich-header {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .immich-header-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .immich-btn-wide {
+        min-width: unset;
+        flex: 1;
+    }
+
     .immich-browser {
         flex-direction: column;
     }
@@ -347,6 +470,26 @@
 .immich-sidebar::-webkit-scrollbar-thumb:hover,
 .immich-assets::-webkit-scrollbar-thumb:hover {
     background: #555;
+}
+
+.immich-lightbox-hd {
+    position: absolute;
+    top: 20px;
+    right: 125px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 8px 10px;
+    opacity: 0.8;
+    transition: opacity 0.2s, background 0.2s;
+    border-radius: 4px;
+}
+
+.immich-lightbox-hd:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.2);
 }
 
 /* Lightbox */

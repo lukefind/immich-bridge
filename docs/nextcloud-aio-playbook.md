@@ -130,6 +130,14 @@ If you need to reset stored Immich config:
 - Make layout fill Nextcloud app content area.
   - Implemented: full-page CSS constraints.
 
+### Nextcloud top-bar overlap rule
+- Symptom: header/buttons appear **under** the Nextcloud top bar (cut off / overlapping).
+- Root cause: forcing viewport layout with `position:absolute; top:0;` (or global `#content` overrides) ignores Nextcloud’s own content offsets.
+- Fix:
+  - Don’t absolutely-position your root container to `top:0`.
+  - Scope any “full height” rules to this app only (e.g. `.app-immich_nc_app #content { ... }`).
+  - Prefer flex layouts within the app container and let Nextcloud control the page chrome.
+
 ## 10) “Symptom → Fix” quick table
 
 - **Blank screen + CSP script-src-elem errors**

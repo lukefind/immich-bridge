@@ -15,11 +15,15 @@ const ImmichBridgeApp = {
         const albums = ref([]);
         const selectedAlbum = ref(null);
         const assets = ref([]);
+
+        const activeView = ref('albums');
+        const albumSearch = ref('');
         
         // Lightbox state
         const lightboxOpen = ref(false);
         const lightboxAsset = ref(null);
         const lightboxIndex = ref(0);
+        const lightboxHd = ref(false);
 
         const api = async (path, options = {}) => {
             // Add CSRF token for POST/DELETE requests
@@ -51,6 +55,9 @@ const ImmichBridgeApp = {
                 const data = await api(`/config`);
                 config.baseUrl = data.baseUrl || "";
                 configured.value = data.configured;
+                if (!data.configured) {
+                    activeView.value = 'settings';
+                }
             } catch (err) {
                 error.value = err.message;
             } finally {
@@ -63,16 +70,23 @@ const ImmichBridgeApp = {
             error.value = null;
             successMessage.value = null;
             try {
+                const payload = {
+                    baseUrl: config.baseUrl,
+                };
+
+                if (config.apiKey && config.apiKey.trim().length > 0) {
+                    payload.apiKey = config.apiKey;
+                }
+
                 await api(`/config`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        baseUrl: config.baseUrl,
-                        apiKey: config.apiKey
-                    })
+                    body: JSON.stringify(payload)
                 });
                 configured.value = true;
                 successMessage.value = "Configuration saved successfully!";
+                config.apiKey = "";
+                activeView.value = 'albums';
                 await loadAlbums();
             } catch (err) {
                 error.value = err.message;
@@ -82,9 +96,13 @@ const ImmichBridgeApp = {
         };
 
         const logout = async () => {
-            if (!confirm('Are you sure you want to disconnect from Immich?')) {
-                return;
-            }
+            const confirmFn = (typeof OC !== 'undefined' && OC.dialogs && typeof OC.dialogs.confirm === 'function')
+                ? (msg) => new Promise((resolve) => OC.dialogs.confirm(msg, 'Immich Bridge', (result) => resolve(result)))
+                : async (msg) => confirm(msg);
+
+            const confirmed = await confirmFn('Are you sure you want to disconnect from Immich?');
+            if (!confirmed) return;
+
             loading.value = true;
             error.value = null;
             try {
@@ -95,6 +113,7 @@ const ImmichBridgeApp = {
                 albums.value = [];
                 selectedAlbum.value = null;
                 assets.value = [];
+                activeView.value = 'settings';
             } catch (err) {
                 error.value = err.message;
             } finally {
@@ -125,17 +144,20 @@ const ImmichBridgeApp = {
             lightboxAsset.value = asset;
             lightboxIndex.value = index;
             lightboxOpen.value = true;
+            lightboxHd.value = false;
         };
 
         const closeLightbox = () => {
             lightboxOpen.value = false;
             lightboxAsset.value = null;
+            lightboxHd.value = false;
         };
 
         const nextImage = () => {
             if (lightboxIndex.value < assets.value.length - 1) {
                 lightboxIndex.value++;
                 lightboxAsset.value = assets.value[lightboxIndex.value];
+                lightboxHd.value = false;
             }
         };
 
@@ -143,6 +165,7 @@ const ImmichBridgeApp = {
             if (lightboxIndex.value > 0) {
                 lightboxIndex.value--;
                 lightboxAsset.value = assets.value[lightboxIndex.value];
+                lightboxHd.value = false;
             }
         };
 
@@ -159,9 +182,21 @@ const ImmichBridgeApp = {
             }
         };
 
+        const toggleHd = () => {
+            lightboxHd.value = !lightboxHd.value;
+        };
+
         const refreshAlbums = async () => {
             error.value = null;
             await loadAlbums();
+        };
+
+        const showSettings = () => {
+            activeView.value = 'settings';
+        };
+
+        const showAlbums = () => {
+            activeView.value = 'albums';
         };
 
         onMounted(async () => {
@@ -176,8 +211,8 @@ const ImmichBridgeApp = {
         return () => {
             const children = [];
 
-            // Header with actions (only when configured)
-            if (configured.value && !loading.value) {
+            // Header with actions
+            if (!loading.value) {
                 children.push(
                     h('div', { class: 'immich-header' }, [
                         h('div', { class: 'immich-header-title' }, [
@@ -186,13 +221,21 @@ const ImmichBridgeApp = {
                         ]),
                         h('div', { class: 'immich-header-actions' }, [
                             h('button', { 
-                                class: 'immich-btn immich-btn-secondary',
+                                class: 'immich-btn immich-btn-secondary immich-btn-wide',
                                 onClick: refreshAlbums,
+                                disabled: !configured.value,
                                 title: 'Refresh albums'
                             }, '↻ Refresh'),
+                            h('button', {
+                                class: 'immich-btn immich-btn-secondary immich-btn-wide',
+                                onClick: showSettings,
+                                disabled: !configured.value,
+                                title: 'Settings'
+                            }, 'Settings'),
                             h('button', { 
-                                class: 'immich-btn immich-btn-danger',
+                                class: 'immich-btn immich-btn-danger immich-btn-wide',
                                 onClick: logout,
+                                disabled: !configured.value,
                                 title: 'Disconnect from Immich'
                             }, 'Disconnect')
                         ])
@@ -215,86 +258,129 @@ const ImmichBridgeApp = {
                 children.push(h('div', { class: 'immich-success' }, successMessage.value));
             }
 
-            // Setup form
-            if (!loading.value && !configured.value) {
-                children.push(
-                    h('div', { class: 'immich-setup' }, [
-                        h('h2', null, 'Immich Bridge Setup'),
-                        h('p', { class: 'immich-setup-desc' }, 'Connect your Immich instance to browse your photo library.'),
-                        h('label', null, [
-                            'Immich Base URL:',
-                            h('input', {
-                                value: config.baseUrl,
-                                placeholder: 'https://photos.example.com/api',
-                                onInput: (e) => { config.baseUrl = e.target.value; }
-                            })
-                        ]),
-                        h('p', { class: 'immich-hint' }, 'Include /api at the end of your Immich URL'),
-                        h('label', null, [
-                            'Immich API Key:',
-                            h('input', {
-                                type: 'password',
-                                value: config.apiKey,
-                                placeholder: 'Your Immich API key',
-                                onInput: (e) => { config.apiKey = e.target.value; }
-                            })
-                        ]),
-                        h('p', { class: 'immich-hint' }, 'Generate an API key in Immich: Account Settings → API Keys'),
-                        h('button', { class: 'immich-btn immich-btn-primary', onClick: saveConfig }, 'Connect to Immich')
-                    ])
-                );
-            }
+            // Main app shell
+            if (!loading.value) {
+                let sidebarContent = [];
+                let mainContent = [];
 
-            // Browser view
-            if (configured.value && !loading.value) {
-                const albumItems = albums.value.map(album =>
-                    h('li', {
-                        key: album.id,
-                        class: { active: selectedAlbum.value && selectedAlbum.value.id === album.id },
-                        onClick: () => selectAlbum(album)
-                    }, `${album.title} (${album.assetCount})`)
-                );
-
-                const sidebar = h('div', { class: 'immich-sidebar' }, [
-                    h('h3', null, 'Albums'),
-                    h('ul', null, albumItems),
-                    albums.value.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No albums found. Create albums in Immich first.') : null
+                const nav = h('div', { class: 'immich-nav' }, [
+                    h('button', {
+                        class: ['immich-nav-item', activeView.value === 'albums' ? 'active' : null],
+                        onClick: showAlbums,
+                        disabled: !configured.value
+                    }, 'Albums'),
+                    h('button', {
+                        class: ['immich-nav-item', activeView.value === 'settings' ? 'active' : null],
+                        onClick: showSettings
+                    }, 'Settings')
                 ]);
 
-                let assetsContent;
-                if (!selectedAlbum.value) {
-                    assetsContent = h('div', { class: 'immich-placeholder' }, [
-                        h('p', null, 'Select an album to view photos')
-                    ]);
-                } else {
-                    const assetItems = assets.value.map((asset, index) =>
-                        h('div', {
-                            key: asset.id,
-                            class: 'immich-thumb',
-                            onClick: () => openLightbox(asset, index)
-                        }, [
-                            h('img', {
-                                src: `/apps/immich_nc_app/api/assets/${asset.id}/thumbnail`,
-                                alt: asset.fileName,
-                                loading: 'lazy'
-                            })
+                sidebarContent.push(nav);
+
+                if (activeView.value === 'albums' && configured.value) {
+                    const q = albumSearch.value.trim().toLowerCase();
+                    const filteredAlbums = q.length === 0
+                        ? albums.value
+                        : albums.value.filter(a => (a.title || '').toLowerCase().includes(q));
+
+                    const albumItems = filteredAlbums.map(album =>
+                        h('li', {
+                            key: album.id,
+                            class: { active: selectedAlbum.value && selectedAlbum.value.id === album.id },
+                            onClick: () => selectAlbum(album)
+                        }, `${album.title} (${album.assetCount})`)
+                    );
+
+                    sidebarContent.push(
+                        h('div', { class: 'immich-sidebar-section' }, [
+                            h('h3', null, 'Albums'),
+                            h('input', {
+                                class: 'immich-search',
+                                value: albumSearch.value,
+                                placeholder: 'Search albums…',
+                                onInput: (e) => { albumSearch.value = e.target.value; }
+                            }),
+                            h('ul', null, albumItems),
+                            filteredAlbums.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No matching albums.') : null
                         ])
                     );
 
-                    assetsContent = h('div', null, [
-                        h('h3', null, selectedAlbum.value.title),
-                        h('div', { class: 'immich-grid' }, assetItems),
-                        assets.value.length === 0 ? h('p', { class: 'immich-no-assets' }, 'No photos in this album.') : null
-                    ]);
+                    if (!selectedAlbum.value) {
+                        mainContent = [
+                            h('div', { class: 'immich-placeholder' }, [
+                                h('p', null, 'Select an album to view photos')
+                            ])
+                        ];
+                    } else {
+                        const assetItems = assets.value.map((asset, index) =>
+                            h('div', {
+                                key: asset.id,
+                                class: 'immich-thumb',
+                                onClick: () => openLightbox(asset, index)
+                            }, [
+                                h('img', {
+                                    src: `/apps/immich_nc_app/api/assets/${asset.id}/thumbnail`,
+                                    alt: asset.fileName,
+                                    loading: 'lazy'
+                                })
+                            ])
+                        );
+
+                        mainContent = [
+                            h('div', { class: 'immich-main-header' }, [
+                                h('h3', null, selectedAlbum.value.title)
+                            ]),
+                            h('div', { class: 'immich-grid' }, assetItems),
+                            assets.value.length === 0 ? h('p', { class: 'immich-no-assets' }, 'No photos in this album.') : null
+                        ];
+                    }
                 }
 
-                const assetsPanel = h('div', { class: 'immich-assets' }, [assetsContent]);
+                if (activeView.value === 'settings') {
+                    const settingsTitle = configured.value ? 'Settings' : 'Connect Immich';
 
-                children.push(h('div', { class: 'immich-browser' }, [sidebar, assetsPanel]));
+                    mainContent = [
+                        h('div', { class: 'immich-settings' }, [
+                            h('h2', null, settingsTitle),
+                            h('p', { class: 'immich-setup-desc' }, 'Configure your Immich connection.'),
+                            h('label', null, [
+                                'Immich Base URL:',
+                                h('input', {
+                                    value: config.baseUrl,
+                                    placeholder: 'https://photos.example.com/api',
+                                    onInput: (e) => { config.baseUrl = e.target.value; }
+                                })
+                            ]),
+                            h('p', { class: 'immich-hint' }, 'Include /api at the end of your Immich URL'),
+                            h('label', null, [
+                                'Immich API Key:',
+                                h('input', {
+                                    type: 'password',
+                                    value: config.apiKey,
+                                    placeholder: configured.value ? 'Leave blank to keep existing key' : 'Your Immich API key',
+                                    onInput: (e) => { config.apiKey = e.target.value; }
+                                })
+                            ]),
+                            h('p', { class: 'immich-hint' }, 'Generate an API key in Immich: Account Settings → API Keys'),
+                            h('div', { class: 'immich-settings-actions' }, [
+                                h('button', { class: 'immich-btn immich-btn-primary immich-btn-wide', onClick: saveConfig }, configured.value ? 'Save' : 'Connect'),
+                                configured.value ? h('button', { class: 'immich-btn immich-btn-danger immich-btn-wide', onClick: logout }, 'Disconnect') : null,
+                            ])
+                        ])
+                    ];
+                }
+
+                const sidebar = h('div', { class: 'immich-sidebar' }, sidebarContent);
+                const main = h('div', { class: 'immich-assets' }, mainContent);
+                children.push(h('div', { class: 'immich-browser' }, [sidebar, main]));
             }
 
             // Lightbox modal
             if (lightboxOpen.value && lightboxAsset.value) {
+                const src = lightboxHd.value
+                    ? `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/original`
+                    : `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/thumbnail`;
+
                 children.push(
                     h('div', { 
                         class: 'immich-lightbox',
@@ -302,7 +388,7 @@ const ImmichBridgeApp = {
                     }, [
                         h('div', { class: 'immich-lightbox-content' }, [
                             h('img', {
-                                src: `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/original`,
+                                src,
                                 alt: lightboxAsset.value.fileName
                             }),
                             h('div', { class: 'immich-lightbox-info' }, [
@@ -310,6 +396,11 @@ const ImmichBridgeApp = {
                                 h('span', null, `${lightboxIndex.value + 1} / ${assets.value.length}`)
                             ])
                         ]),
+                        h('button', {
+                            class: 'immich-lightbox-hd',
+                            onClick: toggleHd,
+                            title: lightboxHd.value ? 'Show preview' : 'Load HD'
+                        }, lightboxHd.value ? 'SD' : 'HD'),
                         h('button', { 
                             class: 'immich-lightbox-close',
                             onClick: closeLightbox

@@ -97,7 +97,12 @@ class ApiController extends Controller {
         }
 
         if (empty($apiKey)) {
-            return new JSONResponse(['error' => 'API Key is required'], Http::STATUS_BAD_REQUEST);
+            $existingConfig = $this->configService->getConfigForUser($userId);
+            if ($existingConfig !== null && !empty($existingConfig->getApiKey())) {
+                $apiKey = $existingConfig->getApiKey();
+            } else {
+                return new JSONResponse(['error' => 'API Key is required'], Http::STATUS_BAD_REQUEST);
+            }
         }
 
         // Validate URL format
