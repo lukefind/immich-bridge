@@ -348,6 +348,16 @@ const ImmichBridgeApp = {
             toast('Share via Talk - coming soon!');
         };
 
+        // Album save progress state (kept outside component to persist across navigation)
+        const albumSaveProgress = reactive({
+            active: false,
+            total: 0,
+            saved: 0,
+            failed: 0,
+            albumName: '',
+            cancelled: false
+        });
+
         const saveAlbumToNextcloud = async (album) => {
             if (!album || !assets.value.length) {
                 toastError('No photos to save');
@@ -355,16 +365,23 @@ const ImmichBridgeApp = {
             }
             
             const albumTitle = album.title || 'Album';
-            const assetCount = assets.value.length;
+            const assetList = [...assets.value]; // Copy to preserve even if user navigates away
+            const assetCount = assetList.length;
             
             const doSave = async (targetPath) => {
                 const folderPath = `${targetPath}/${albumTitle}`.replace(/\/+/g, '/');
-                toast(`Saving ${assetCount} photos to ${folderPath}...`);
                 
-                let saved = 0;
-                let failed = 0;
+                // Initialize progress
+                albumSaveProgress.active = true;
+                albumSaveProgress.total = assetCount;
+                albumSaveProgress.saved = 0;
+                albumSaveProgress.failed = 0;
+                albumSaveProgress.albumName = albumTitle;
+                albumSaveProgress.cancelled = false;
                 
-                for (const asset of assets.value) {
+                for (const asset of assetList) {
+                    if (albumSaveProgress.cancelled) break;
+                    
                     try {
                         const response = await fetch(`/apps/immich_nc_app/api/assets/${asset.id}/save-to-nextcloud`, {
                             method: 'POST',
@@ -378,20 +395,25 @@ const ImmichBridgeApp = {
                             })
                         });
                         if (response.ok) {
-                            saved++;
+                            albumSaveProgress.saved++;
                         } else {
-                            failed++;
+                            albumSaveProgress.failed++;
                         }
                     } catch (err) {
-                        failed++;
+                        albumSaveProgress.failed++;
                     }
                 }
                 
-                if (failed === 0) {
-                    toast(`Saved ${saved} photos to ${folderPath}`);
+                // Show final result
+                if (albumSaveProgress.cancelled) {
+                    toast(`Cancelled. Saved ${albumSaveProgress.saved} of ${assetCount} photos.`);
+                } else if (albumSaveProgress.failed === 0) {
+                    toast(`Saved ${albumSaveProgress.saved} photos to ${folderPath}`);
                 } else {
-                    toast(`Saved ${saved} photos, ${failed} failed`);
+                    toast(`Saved ${albumSaveProgress.saved} photos, ${albumSaveProgress.failed} failed`);
                 }
+                
+                albumSaveProgress.active = false;
             };
 
             if (typeof OC !== 'undefined' && OC.dialogs && OC.dialogs.filepicker) {
@@ -809,80 +831,96 @@ const ImmichBridgeApp = {
                 children.push(h('div', { class: 'immich-browser' }, [sidebar, main]));
             }
 
-            // Lightbox modal (teleported to body to avoid Nextcloud stacking contexts)
+            // Album save progress indicator (always visible when active)
+            if (albumSaveProgress.active) {
+                const progressPercent = Math.round((albumSaveProgress.saved + albumSaveProgress.failed) / albumSaveProgress.total * 100);
+                const progressBar = h('div', { class: 'immich-save-progress' }, [
+                    h('div', { class: 'immich-save-progress-text' }, [
+                        h('span', null, `Saving "${albumSaveProgress.albumName}": ${albumSaveProgress.saved}/${albumSaveProgress.total}`),
+                        albumSaveProgress.failed > 0 ? h('span', { class: 'failed' }, ` (${albumSaveProgress.failed} failed)`) : null
+                    ]),
+                    h('div', { class: 'immich-save-progress-bar' }, [
+                        h('div', { class: 'immich-save-progress-fill', style: { width: `${progressPercent}%` } })
+                    ]),
+                    h('button', {
+                        class: 'immich-save-progress-cancel',
+                        onClick: () => { albumSaveProgress.cancelled = true; }
+                    }, '✕')
+                ]);
+                children.push(h(Teleport, { to: 'body' }, [progressBar]));
+            }
+
+            // Lightbox modal - full screen, no header bar
             if (lightboxOpen.value && lightboxAsset.value) {
                 const base = `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}`;
                 const previewSrc = `${base}/preview`;
                 const originalSrc = `${base}/original`;
                 const candidates = [previewSrc, originalSrc];
 
-                // Header with actions (Nextcloud Photos style)
-                const lightboxHeader = h('div', { class: 'immich-lightbox-header' }, [
-                    h('div', { class: 'immich-lightbox-title' }, [
+                const lightbox = h('div', {
+                    class: 'immich-lightbox',
+                    onClick: (e) => { if (e.target.classList.contains('immich-lightbox') || e.target.classList.contains('immich-lightbox-body')) closeLightbox(); }
+                }, [
+                    // Close button top right
+                    h('button', {
+                        class: 'immich-lightbox-close',
+                        onClick: closeLightbox,
+                        title: 'Close (Esc)'
+                    }, '✕'),
+                    
+                    // Info overlay top left
+                    h('div', { class: 'immich-lightbox-info' }, [
                         h('span', { class: 'immich-lightbox-filename' }, lightboxAsset.value.fileName),
                         h('span', { class: 'immich-lightbox-counter' }, `${lightboxIndex.value + 1} / ${assets.value.length}`)
                     ]),
-                    h('div', { class: 'immich-lightbox-toolbar' }, [
+                    
+                    // Main image area
+                    h('div', { class: 'immich-lightbox-body' }, [
+                        h('img', {
+                            key: lightboxAsset.value.id,
+                            src: previewSrc,
+                            alt: lightboxAsset.value.fileName,
+                            'data-fallback-index': '0',
+                            onError: (e) => {
+                                const img = e.target;
+                                const idx = parseInt(img.dataset.fallbackIndex || '0', 10);
+                                const next = candidates[idx + 1];
+                                if (!next) return;
+                                img.dataset.fallbackIndex = String(idx + 1);
+                                img.src = next;
+                            }
+                        })
+                    ]),
+                    
+                    // Nav arrows
+                    h('button', {
+                        class: 'immich-lightbox-nav immich-lightbox-prev',
+                        onClick: prevImage,
+                        disabled: lightboxIndex.value === 0
+                    }, '‹'),
+                    h('button', {
+                        class: 'immich-lightbox-nav immich-lightbox-next',
+                        onClick: nextImage,
+                        disabled: lightboxIndex.value === assets.value.length - 1
+                    }, '›'),
+                    
+                    // Action buttons bottom center
+                    h('div', { class: 'immich-lightbox-actions' }, [
                         h('button', {
-                            class: 'immich-lightbox-btn',
+                            class: 'immich-lightbox-action',
                             onClick: openInNewTab,
                             title: 'Open in Immich'
-                        }, [h('span', { class: 'icon' }, '↗'), h('span', { class: 'label' }, 'Open')]),
+                        }, '↗'),
                         h('button', {
-                            class: 'immich-lightbox-btn',
+                            class: 'immich-lightbox-action',
                             onClick: () => window.open(originalSrc, '_blank'),
-                            title: 'Download original'
-                        }, [h('span', { class: 'icon' }, '↓'), h('span', { class: 'label' }, 'Download')]),
+                            title: 'Download'
+                        }, '↓'),
                         h('button', {
-                            class: 'immich-lightbox-btn',
+                            class: 'immich-lightbox-action',
                             onClick: saveToNextcloud,
                             title: 'Save to Nextcloud'
-                        }, [h('span', { class: 'icon' }, '📁'), h('span', { class: 'label' }, 'Save')]),
-                        h('button', {
-                            class: 'immich-lightbox-btn',
-                            onClick: shareViaTalk,
-                            title: 'Share'
-                        }, [h('span', { class: 'icon' }, '↪'), h('span', { class: 'label' }, 'Share')]),
-                        h('button', {
-                            class: 'immich-lightbox-btn immich-lightbox-close-btn',
-                            onClick: closeLightbox,
-                            title: 'Close'
-                        }, '✕')
-                    ])
-                ]);
-
-                const lightbox = h('div', {
-                    class: 'immich-lightbox',
-                    onClick: (e) => { if (e.target.classList.contains('immich-lightbox')) closeLightbox(); }
-                }, [
-                    lightboxHeader,
-                    h('div', { class: 'immich-lightbox-body' }, [
-                        h('button', {
-                            class: 'immich-lightbox-nav immich-lightbox-prev',
-                            onClick: prevImage,
-                            disabled: lightboxIndex.value === 0
-                        }, h('span', null, '‹')),
-                        h('div', { class: 'immich-lightbox-image-container' }, [
-                            h('img', {
-                                key: lightboxAsset.value.id,
-                                src: previewSrc,
-                                alt: lightboxAsset.value.fileName,
-                                'data-fallback-index': '0',
-                                onError: (e) => {
-                                    const img = e.target;
-                                    const idx = parseInt(img.dataset.fallbackIndex || '0', 10);
-                                    const next = candidates[idx + 1];
-                                    if (!next) return;
-                                    img.dataset.fallbackIndex = String(idx + 1);
-                                    img.src = next;
-                                }
-                            })
-                        ]),
-                        h('button', {
-                            class: 'immich-lightbox-nav immich-lightbox-next',
-                            onClick: nextImage,
-                            disabled: lightboxIndex.value === assets.value.length - 1
-                        }, h('span', null, '›'))
+                        }, '📁'),
                     ])
                 ]);
 
