@@ -189,7 +189,7 @@ class ApiController extends Controller {
      *
      * @return JSONResponse
      */
-    public function searchAssets(): JSONResponse {
+    public function getTimeline(): JSONResponse {
         try {
             $isFavorite = $this->request->getParam('isFavorite') === 'true';
             
