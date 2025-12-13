@@ -121,7 +121,8 @@ If a route “should exist” but you still get HTML 404 or method mismatch:
 - A Nextcloud app route like `/apps/immich_nc_app/api/...` returning HTML “Page not found” indicates **route registration/deploy mismatch**, not an image decode issue.
 - Make the lightbox robust by falling back image sources (e.g. `preview → thumbnail → original`) on `img.onerror`.
 - If the lightbox appears under the Nextcloud top bar:
-  - raise overlay `z-index` (and avoid global layout hacks).
+  - If `z-index` doesn't work, the lightbox may be inside a stacking context (e.g. parent has `transform`).
+  - Fix: render the lightbox using Vue `Teleport` to `document.body`.
 
 ---
 
@@ -147,3 +148,6 @@ If a route “should exist” but you still get HTML 404 or method mismatch:
   - Root cause: route not active in deployed instance (stale route cache / mismatched deployed code).
   - Fix: ensure AIO volume updated + disable/enable app + hard refresh.
 - Added lightbox image fallback chain to avoid blank lightbox if preview route is unavailable.
+- Observed: lightbox overlay can still appear behind the Nextcloud top bar even with high `z-index`.
+  - Root cause: stacking context / transformed parent inside Nextcloud layout.
+  - Fix: Teleport the lightbox to `document.body`.

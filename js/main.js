@@ -1,4 +1,4 @@
-const { createApp, ref, reactive, onMounted, h } = Vue;
+const { createApp, ref, reactive, onMounted, h, Teleport } = Vue;
 
 const ImmichBridgeApp = {
     setup() {
@@ -430,7 +430,7 @@ const ImmichBridgeApp = {
                 children.push(h('div', { class: 'immich-browser' }, [sidebar, main]));
             }
 
-            // Lightbox modal
+            // Lightbox modal (teleported to body to avoid Nextcloud stacking contexts)
             if (lightboxOpen.value && lightboxAsset.value) {
                 const base = `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}`;
                 const previewSrc = `${base}/thumbnail?key=preview`;
@@ -438,52 +438,52 @@ const ImmichBridgeApp = {
                 const originalSrc = `${base}/original`;
                 const candidates = [previewSrc, thumbSrc, originalSrc];
 
-                children.push(
-                    h('div', { 
-                        class: 'immich-lightbox',
-                        onClick: (e) => { if (e.target.classList.contains('immich-lightbox')) closeLightbox(); }
-                    }, [
-                        h('div', { class: 'immich-lightbox-content' }, [
-                            h('img', {
-                                key: lightboxAsset.value.id,
-                                src: previewSrc,
-                                alt: lightboxAsset.value.fileName,
-                                'data-fallback-index': '0',
-                                onError: (e) => {
-                                    const img = e.target;
-                                    const idx = parseInt(img.dataset.fallbackIndex || '0', 10);
-                                    const next = candidates[idx + 1];
-                                    if (!next) return;
-                                    img.dataset.fallbackIndex = String(idx + 1);
-                                    img.src = next;
-                                }
-                            }),
-                            h('div', { class: 'immich-lightbox-info' }, [
-                                h('span', null, lightboxAsset.value.fileName),
-                                h('span', null, `${lightboxIndex.value + 1} / ${assets.value.length}`)
-                            ])
-                        ]),
-                        h('button', { 
-                            class: 'immich-lightbox-close',
-                            onClick: closeLightbox
-                        }, '✕'),
-                        h('button', { 
-                            class: 'immich-lightbox-prev',
-                            onClick: prevImage,
-                            disabled: lightboxIndex.value === 0
-                        }, '‹'),
-                        h('button', { 
-                            class: 'immich-lightbox-next',
-                            onClick: nextImage,
-                            disabled: lightboxIndex.value === assets.value.length - 1
-                        }, '›'),
-                        h('button', { 
-                            class: 'immich-lightbox-newtab',
-                            onClick: openInNewTab,
-                            title: 'Open in new tab'
-                        }, '↗')
-                    ])
-                );
+                const lightbox = h('div', {
+                    class: 'immich-lightbox',
+                    onClick: (e) => { if (e.target.classList.contains('immich-lightbox')) closeLightbox(); }
+                }, [
+                    h('div', { class: 'immich-lightbox-content' }, [
+                        h('img', {
+                            key: lightboxAsset.value.id,
+                            src: previewSrc,
+                            alt: lightboxAsset.value.fileName,
+                            'data-fallback-index': '0',
+                            onError: (e) => {
+                                const img = e.target;
+                                const idx = parseInt(img.dataset.fallbackIndex || '0', 10);
+                                const next = candidates[idx + 1];
+                                if (!next) return;
+                                img.dataset.fallbackIndex = String(idx + 1);
+                                img.src = next;
+                            }
+                        }),
+                        h('div', { class: 'immich-lightbox-info' }, [
+                            h('span', null, lightboxAsset.value.fileName),
+                            h('span', null, `${lightboxIndex.value + 1} / ${assets.value.length}`)
+                        ])
+                    ]),
+                    h('button', {
+                        class: 'immich-lightbox-close',
+                        onClick: closeLightbox
+                    }, '✕'),
+                    h('button', {
+                        class: 'immich-lightbox-prev',
+                        onClick: prevImage,
+                        disabled: lightboxIndex.value === 0
+                    }, '‹'),
+                    h('button', {
+                        class: 'immich-lightbox-next',
+                        onClick: nextImage,
+                        disabled: lightboxIndex.value === assets.value.length - 1
+                    }, '›'),
+                    h('button', {
+                        class: 'immich-lightbox-newtab',
+                        onClick: openInNewTab,
+                        title: 'Open in new tab'
+                    }, '↗')
+                ]);
+
+                children.push(h(Teleport, { to: 'body' }, [lightbox]));
             }
 
             return h('div', { class: 'immich-wrapper' }, children);
