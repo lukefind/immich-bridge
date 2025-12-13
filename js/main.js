@@ -18,6 +18,9 @@ const ImmichBridgeApp = {
 
         const activeView = ref('albums');
         const albumSearch = ref('');
+
+        const isMobile = ref(false);
+        const sidebarOpen = ref(false);
         
         // Lightbox state
         const lightboxOpen = ref(false);
@@ -170,8 +173,18 @@ const ImmichBridgeApp = {
         };
 
         const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                if (lightboxOpen.value) {
+                    closeLightbox();
+                    return;
+                }
+                if (sidebarOpen.value) {
+                    sidebarOpen.value = false;
+                }
+                return;
+            }
+
             if (!lightboxOpen.value) return;
-            if (e.key === 'Escape') closeLightbox();
             if (e.key === 'ArrowRight') nextImage();
             if (e.key === 'ArrowLeft') prevImage();
         };
@@ -193,13 +206,36 @@ const ImmichBridgeApp = {
 
         const showSettings = () => {
             activeView.value = 'settings';
+            if (isMobile.value) {
+                sidebarOpen.value = false;
+            }
         };
 
         const showAlbums = () => {
             activeView.value = 'albums';
+            if (isMobile.value) {
+                sidebarOpen.value = false;
+            }
+        };
+
+        const toggleSidebar = () => {
+            sidebarOpen.value = !sidebarOpen.value;
+        };
+
+        const closeSidebar = () => {
+            sidebarOpen.value = false;
         };
 
         onMounted(async () => {
+            const updateIsMobile = () => {
+                isMobile.value = window.matchMedia('(max-width: 768px)').matches;
+                if (!isMobile.value) {
+                    sidebarOpen.value = false;
+                }
+            };
+            updateIsMobile();
+            window.addEventListener('resize', updateIsMobile);
+
             await loadConfig();
             if (configured.value) {
                 await loadAlbums();
@@ -210,38 +246,6 @@ const ImmichBridgeApp = {
 
         return () => {
             const children = [];
-
-            // Header with actions
-            if (!loading.value) {
-                children.push(
-                    h('div', { class: 'immich-header' }, [
-                        h('div', { class: 'immich-header-title' }, [
-                            h('span', { class: 'immich-logo' }, '📷'),
-                            h('span', null, 'Immich Bridge')
-                        ]),
-                        h('div', { class: 'immich-header-actions' }, [
-                            h('button', { 
-                                class: 'immich-btn immich-btn-secondary immich-btn-wide',
-                                onClick: refreshAlbums,
-                                disabled: !configured.value,
-                                title: 'Refresh albums'
-                            }, '↻ Refresh'),
-                            h('button', {
-                                class: 'immich-btn immich-btn-secondary immich-btn-wide',
-                                onClick: showSettings,
-                                disabled: !configured.value,
-                                title: 'Settings'
-                            }, 'Settings'),
-                            h('button', { 
-                                class: 'immich-btn immich-btn-danger immich-btn-wide',
-                                onClick: logout,
-                                disabled: !configured.value,
-                                title: 'Disconnect from Immich'
-                            }, 'Disconnect')
-                        ])
-                    ])
-                );
-            }
 
             // Loading state
             if (loading.value) {
@@ -263,6 +267,13 @@ const ImmichBridgeApp = {
                 let sidebarContent = [];
                 let mainContent = [];
 
+                if (isMobile.value && sidebarOpen.value) {
+                    children.push(h('div', {
+                        class: 'immich-drawer-backdrop',
+                        onClick: closeSidebar
+                    }));
+                }
+
                 const nav = h('div', { class: 'immich-nav' }, [
                     h('button', {
                         class: ['immich-nav-item', activeView.value === 'albums' ? 'active' : null],
@@ -275,6 +286,34 @@ const ImmichBridgeApp = {
                     }, 'Settings')
                 ]);
 
+                const sidebarHeader = h('div', { class: 'immich-sidebar-header' }, [
+                    h('div', { class: 'immich-sidebar-title' }, 'Immich Bridge'),
+                    isMobile.value ? h('button', { class: 'immich-sidebar-close', onClick: closeSidebar, title: 'Close menu' }, '✕') : null
+                ]);
+
+                const sidebarActions = h('div', { class: 'immich-sidebar-actions' }, [
+                    h('button', {
+                        class: 'immich-btn immich-btn-secondary immich-btn-wide',
+                        onClick: refreshAlbums,
+                        disabled: !configured.value,
+                        title: 'Refresh albums'
+                    }, '↻ Refresh'),
+                    h('button', {
+                        class: 'immich-btn immich-btn-secondary immich-btn-wide',
+                        onClick: showSettings,
+                        disabled: !configured.value,
+                        title: 'Settings'
+                    }, 'Settings'),
+                    h('button', {
+                        class: 'immich-btn immich-btn-danger immich-btn-wide',
+                        onClick: logout,
+                        disabled: !configured.value,
+                        title: 'Disconnect from Immich'
+                    }, 'Disconnect')
+                ]);
+
+                sidebarContent.push(sidebarHeader);
+                sidebarContent.push(sidebarActions);
                 sidebarContent.push(nav);
 
                 if (activeView.value === 'albums' && configured.value) {
@@ -287,7 +326,12 @@ const ImmichBridgeApp = {
                         h('li', {
                             key: album.id,
                             class: { active: selectedAlbum.value && selectedAlbum.value.id === album.id },
-                            onClick: () => selectAlbum(album)
+                            onClick: () => {
+                                selectAlbum(album);
+                                if (isMobile.value) {
+                                    sidebarOpen.value = false;
+                                }
+                            }
                         }, `${album.title} (${album.assetCount})`)
                     );
 
@@ -370,8 +414,17 @@ const ImmichBridgeApp = {
                     ];
                 }
 
-                const sidebar = h('div', { class: 'immich-sidebar' }, sidebarContent);
-                const main = h('div', { class: 'immich-assets' }, mainContent);
+                const sidebar = h('div', {
+                    class: ['immich-sidebar', isMobile.value ? 'immich-drawer' : null, (isMobile.value && sidebarOpen.value) ? 'open' : null]
+                }, sidebarContent);
+
+                const mobileMenuButton = isMobile.value ? h('button', {
+                    class: 'immich-hamburger',
+                    onClick: toggleSidebar,
+                    title: 'Menu'
+                }, '☰') : null;
+
+                const main = h('div', { class: 'immich-assets' }, [mobileMenuButton, ...mainContent]);
                 children.push(h('div', { class: 'immich-browser' }, [sidebar, main]));
             }
 
