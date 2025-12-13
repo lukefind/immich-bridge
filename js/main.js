@@ -607,13 +607,30 @@ const ImmichBridgeApp = {
                         ])
                     );
 
+                    // Build timeline scroller - vertical list of years/months on the right side
+                    const timelineScroller = h('div', { class: 'immich-timeline-scroller' }, 
+                        availableYears.value.map(year => 
+                            h('div', {
+                                key: year,
+                                class: ['immich-timeline-year', photoFilter.year == year ? 'active' : ''].filter(Boolean).join(' '),
+                                onClick: () => {
+                                    photoFilter.year = photoFilter.year == year ? null : year;
+                                    loadAllPhotos();
+                                }
+                            }, year)
+                        )
+                    );
+
                     mainContent = [
                         h('div', { class: 'immich-main-header' }, [
                             h('h3', null, 'All Photos'),
                             h('span', { class: 'immich-photo-count' }, `${assets.value.length} photos`)
                         ]),
                         filterBar,
-                        h('div', { class: 'immich-grid' }, assetItems),
+                        h('div', { class: 'immich-photos-container' }, [
+                            h('div', { class: 'immich-grid' }, assetItems),
+                            availableYears.value.length > 0 ? timelineScroller : null
+                        ]),
                         assets.value.length === 0 ? h('p', { class: 'immich-no-assets' }, 'No photos found with current filters.') : null
                     ];
                 }

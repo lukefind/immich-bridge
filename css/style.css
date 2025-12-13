@@ -382,6 +382,61 @@
     white-space: nowrap;
 }
 
+/* Photos container with timeline scroller */
+.immich-photos-container {
+    display: flex;
+    gap: 12px;
+    position: relative;
+}
+
+.immich-photos-container .immich-grid {
+    flex: 1;
+}
+
+/* Timeline scroller on right side */
+.immich-timeline-scroller {
+    position: sticky;
+    top: 0;
+    right: 0;
+    width: 50px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 4px;
+    background: var(--color-background-dark, rgba(33, 33, 33, 0.9));
+    border-radius: 8px;
+    border: 1px solid var(--color-border, #333);
+}
+
+.immich-timeline-year {
+    padding: 6px 8px;
+    font-size: 11px;
+    text-align: center;
+    color: var(--color-text-maxcontrast, #888);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.immich-timeline-year:hover {
+    background: var(--color-background-hover, rgba(255, 255, 255, 0.1));
+    color: var(--color-main-text, #fff);
+}
+
+.immich-timeline-year.active {
+    background: var(--color-primary-element, #0082c9);
+    color: var(--color-primary-element-text, #fff);
+}
+
+/* Hide timeline scroller on mobile */
+@media (max-width: 768px) {
+    .immich-timeline-scroller {
+        display: none;
+    }
+}
+
 .immich-filter-checkbox {
     display: flex;
     align-items: center;
