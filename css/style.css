@@ -591,6 +591,7 @@
 /* Mobile album list in main content */
 .immich-mobile-albums {
     padding: 16px;
+    padding-top: 70px; /* Space for hamburger button */
 }
 
 .immich-mobile-albums .immich-album-controls {
