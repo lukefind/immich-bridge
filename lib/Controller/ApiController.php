@@ -208,19 +208,27 @@ class ApiController extends Controller {
                 if (!$timeBucket) continue;
                 
                 $assets = $this->immichClient->getTimeBucket('MONTH', $timeBucket, $isFavorite);
+                
+                // getTimeBucket returns an array of asset objects
+                // Each asset has id, originalFileName, type, isFavorite, etc.
                 if (is_array($assets)) {
-                    $allAssets = array_merge($allAssets, $assets);
+                    foreach ($assets as $asset) {
+                        // Only add if it has an 'id' field (is a valid asset)
+                        if (isset($asset['id'])) {
+                            $allAssets[] = $asset;
+                        }
+                    }
                 }
                 $count++;
             }
             
             return new JSONResponse([
-                'assets' => array_map(fn($a) => [
+                'assets' => array_values(array_map(fn($a) => [
                     'id' => $a['id'] ?? '',
                     'fileName' => $a['originalFileName'] ?? $a['originalPath'] ?? 'Unknown',
                     'type' => $a['type'] ?? 'IMAGE',
                     'isFavorite' => $a['isFavorite'] ?? false,
-                ], $allAssets),
+                ], $allAssets)),
             ]);
         } catch (\Exception $e) {
             $this->logger->error('Failed to get timeline assets: ' . $e->getMessage(), [
