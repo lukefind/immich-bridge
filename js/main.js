@@ -30,6 +30,12 @@ const ImmichBridgeApp = {
 
         // Available years for timeline slider
         const availableYears = ref([]);
+        
+        // Pagination
+        const currentPage = ref(1);
+        const hasMore = ref(false);
+        const totalPhotos = ref(0);
+        const loadingMore = ref(false);
 
         const isMobile = ref(false);
         const sidebarOpen = ref(false);
@@ -165,20 +171,35 @@ const ImmichBridgeApp = {
             }
         };
 
-        const loadAllPhotos = async () => {
+        const loadAllPhotos = async (append = false) => {
             error.value = null;
+            if (append) {
+                loadingMore.value = true;
+            }
             try {
                 const params = new URLSearchParams();
                 if (photoFilter.isFavorite) params.set('isFavorite', 'true');
                 if (photoFilter.year) params.set('year', photoFilter.year);
                 if (photoFilter.rating) params.set('rating', photoFilter.rating);
+                params.set('page', append ? currentPage.value + 1 : 1);
                 
                 const result = await api(`/albums/timeline?${params.toString()}`);
-                assets.value = result.assets || [];
+                const newAssets = result.assets || [];
+                
+                if (append) {
+                    assets.value = [...assets.value, ...newAssets];
+                    currentPage.value++;
+                } else {
+                    assets.value = newAssets;
+                    currentPage.value = 1;
+                }
+                
+                hasMore.value = result.hasMore || false;
+                totalPhotos.value = result.total || assets.value.length;
                 
                 // Extract available years from assets for timeline slider
                 const years = new Set();
-                (result.assets || []).forEach(a => {
+                assets.value.forEach(a => {
                     if (a.fileDate) {
                         const year = new Date(a.fileDate).getFullYear();
                         if (year > 1970) years.add(year);
@@ -195,6 +216,8 @@ const ImmichBridgeApp = {
             } catch (err) {
                 error.value = err.message;
                 toastError(err.message);
+            } finally {
+                loadingMore.value = false;
             }
         };
 
@@ -552,30 +575,15 @@ const ImmichBridgeApp = {
                             }
                         }, [
                             h('option', { value: '' }, 'Any'),
-                            h('option', { value: '1' }, '★+'),
-                            h('option', { value: '2' }, '★★+'),
-                            h('option', { value: '3' }, '★★★+'),
-                            h('option', { value: '4' }, '★★★★+'),
-                            h('option', { value: '5' }, '★★★★★'),
+                            h('option', { value: '1' }, '≥1★'),
+                            h('option', { value: '2' }, '≥2★'),
+                            h('option', { value: '3' }, '≥3★'),
+                            h('option', { value: '4' }, '≥4★'),
+                            h('option', { value: '5' }, '5★'),
                         ])
                     ]);
 
-                    // Year filter
-                    const yearFilter = h('div', { class: 'immich-year-filter' }, [
-                        h('span', { class: 'immich-filter-label' }, 'Year:'),
-                        h('select', {
-                            class: 'immich-select',
-                            value: photoFilter.year || '',
-                            onChange: (e) => {
-                                photoFilter.year = e.target.value || null;
-                                loadAllPhotos();
-                            }
-                        }, [
-                            h('option', { value: '' }, 'All'),
-                            ...availableYears.value.map(year => h('option', { value: year }, year))
-                        ])
-                    ]);
-
+                    // Compact filter bar - all on one line
                     const filterBar = h('div', { class: 'immich-filter-bar' }, [
                         h('label', { class: 'immich-filter-checkbox' }, [
                             h('input', {
@@ -583,14 +591,24 @@ const ImmichBridgeApp = {
                                 checked: photoFilter.isFavorite,
                                 onChange: (e) => { photoFilter.isFavorite = e.target.checked; loadAllPhotos(); }
                             }),
-                            'Favorites'
+                            '♥'
                         ]),
                         ratingFilter,
-                        yearFilter,
+                        h('select', {
+                            class: 'immich-select immich-select-small',
+                            value: photoFilter.year || '',
+                            onChange: (e) => {
+                                photoFilter.year = e.target.value || null;
+                                loadAllPhotos();
+                            }
+                        }, [
+                            h('option', { value: '' }, 'All Years'),
+                            ...availableYears.value.map(year => h('option', { value: year }, year))
+                        ]),
                         (photoFilter.isFavorite || photoFilter.year || photoFilter.rating) ? h('button', {
                             class: 'immich-filter-btn',
                             onClick: () => { photoFilter.isFavorite = false; photoFilter.year = null; photoFilter.rating = 0; loadAllPhotos(); }
-                        }, 'Clear') : null
+                        }, '✕') : null
                     ]);
 
                     const assetItems = assets.value.map((asset, index) =>
@@ -621,14 +639,26 @@ const ImmichBridgeApp = {
                         )
                     );
 
+                    // Load more button
+                    const loadMoreBtn = hasMore.value ? h('div', { class: 'immich-load-more' }, [
+                        h('button', {
+                            class: 'immich-btn immich-btn-secondary',
+                            onClick: () => loadAllPhotos(true),
+                            disabled: loadingMore.value
+                        }, loadingMore.value ? 'Loading...' : `Load More (${assets.value.length} of ${totalPhotos.value})`)
+                    ]) : null;
+
                     mainContent = [
                         h('div', { class: 'immich-main-header' }, [
                             h('h3', null, 'All Photos'),
-                            h('span', { class: 'immich-photo-count' }, `${assets.value.length} photos`)
+                            h('span', { class: 'immich-photo-count' }, `${assets.value.length}${totalPhotos.value > assets.value.length ? ' of ' + totalPhotos.value : ''} photos`)
                         ]),
                         filterBar,
                         h('div', { class: 'immich-photos-container' }, [
-                            h('div', { class: 'immich-grid' }, assetItems),
+                            h('div', { class: 'immich-photos-grid-wrapper' }, [
+                                h('div', { class: 'immich-grid' }, assetItems),
+                                loadMoreBtn
+                            ]),
                             availableYears.value.length > 0 ? timelineScroller : null
                         ]),
                         assets.value.length === 0 ? h('p', { class: 'immich-no-assets' }, 'No photos found with current filters.') : null
