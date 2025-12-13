@@ -169,24 +169,55 @@ class ImmichClient {
     }
 
     /**
-     * Get all assets (timeline view)
+     * Search assets using metadata endpoint (POST /search/metadata)
      *
      * @param array $filters Optional filters (isFavorite, etc.)
-     * @param int $skip Number of assets to skip
-     * @param int $take Number of assets to take
+     * @param int $page Page number (1-indexed)
+     * @param int $size Page size
      * @return array
      */
-    public function getAllAssets(array $filters = [], int $skip = 0, int $take = 100): array {
-        $params = [
-            'skip' => $skip,
-            'take' => $take,
+    public function searchAssets(array $filters = [], int $page = 1, int $size = 100): array {
+        $body = [
+            'page' => $page,
+            'size' => $size,
         ];
 
         if (isset($filters['isFavorite']) && $filters['isFavorite']) {
-            $params['isFavorite'] = 'true';
+            $body['isFavorite'] = true;
         }
 
-        return $this->get('assets?' . http_build_query($params));
+        return $this->post('search/metadata', $body);
+    }
+
+    /**
+     * POST request to Immich API
+     *
+     * @param string $endpoint
+     * @param array $body
+     * @return array
+     */
+    private function post(string $endpoint, array $body): array {
+        $client = $this->clientService->newClient();
+        $url = $this->buildUrl($endpoint);
+
+        try {
+            $response = $client->post($url, [
+                'headers' => [
+                    'x-api-key' => $this->getConfig()->getApiKey(),
+                    'Content-Type' => 'application/json',
+                ],
+                'body' => json_encode($body),
+                'timeout' => 30,
+            ]);
+
+            return json_decode($response->getBody(), true);
+        } catch (\Exception $e) {
+            $this->logger->error('Immich API POST error: ' . $e->getMessage(), [
+                'app' => 'immich_bridge',
+                'endpoint' => $endpoint,
+            ]);
+            throw new \Exception('Failed to post to Immich: ' . $e->getMessage());
+        }
     }
 
     /**

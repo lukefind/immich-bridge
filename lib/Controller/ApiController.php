@@ -197,15 +197,13 @@ class ApiController extends Controller {
                 $filters['isFavorite'] = true;
             }
 
-            $skip = (int)($this->request->getParam('skip', 0));
-            $take = (int)($this->request->getParam('take', 100));
+            $page = (int)($this->request->getParam('page', 1));
+            $size = (int)($this->request->getParam('size', 100));
 
-            $assets = $this->immichClient->getAllAssets($filters, $skip, $take);
+            $result = $this->immichClient->searchAssets($filters, $page, $size);
             
-            // getAllAssets returns an array of assets directly
-            if (!is_array($assets)) {
-                $assets = [];
-            }
+            // searchAssets returns { assets: { items: [...], total: N } }
+            $items = $result['assets']['items'] ?? [];
             
             return new JSONResponse([
                 'assets' => array_map(fn($a) => [
@@ -213,10 +211,11 @@ class ApiController extends Controller {
                     'fileName' => $a['originalFileName'] ?? $a['originalPath'] ?? 'Unknown',
                     'type' => $a['type'] ?? 'IMAGE',
                     'isFavorite' => $a['isFavorite'] ?? false,
-                ], $assets),
+                ], $items),
+                'total' => $result['assets']['total'] ?? count($items),
             ]);
         } catch (\Exception $e) {
-            $this->logger->error('Failed to get assets: ' . $e->getMessage(), [
+            $this->logger->error('Failed to search assets: ' . $e->getMessage(), [
                 'app' => 'immich_bridge',
             ]);
             return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_GATEWAY);

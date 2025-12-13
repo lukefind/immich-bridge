@@ -166,7 +166,8 @@ const ImmichBridgeApp = {
             try {
                 const params = new URLSearchParams();
                 if (photoFilter.isFavorite) params.set('isFavorite', 'true');
-                params.set('take', '200'); // Load more photos
+                params.set('size', '200');
+                params.set('page', '1');
                 
                 const result = await api(`/assets?${params.toString()}`);
                 assets.value = result.assets || [];

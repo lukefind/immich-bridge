@@ -677,7 +677,11 @@
     }
 
     .immich-assets {
-        padding-top: 70px;
+        padding: 16px;
+    }
+
+    .immich-placeholder {
+        padding-top: 0;
     }
 }
 
