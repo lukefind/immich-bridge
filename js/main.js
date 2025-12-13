@@ -422,24 +422,22 @@ const ImmichBridgeApp = {
 
                     sidebarContent.push(
                         h('div', { class: 'immich-sidebar-section' }, [
-                            h('div', { class: 'immich-sidebar-row' }, [
-                                h('h3', null, 'Albums'),
-                                h('button', { class: 'immich-icon-btn', onClick: refreshAlbums, title: 'Refresh albums' }, '↻')
-                            ]),
-                            h('input', {
-                                class: 'immich-search',
-                                value: albumSearch.value,
-                                placeholder: 'Search albums…',
-                                onInput: (e) => { albumSearch.value = e.target.value; }
-                            }),
-                            h('select', {
-                                class: 'immich-select',
-                                value: albumSort.value,
-                                onChange: (e) => { albumSort.value = e.target.value; }
-                            }, [
-                                h('option', { value: 'name' }, 'Sort: Name'),
-                                h('option', { value: 'date' }, 'Sort: Date'),
-                                h('option', { value: 'count' }, 'Sort: Count'),
+                            h('div', { class: 'immich-album-controls' }, [
+                                h('input', {
+                                    class: 'immich-search',
+                                    value: albumSearch.value,
+                                    placeholder: 'Search albums…',
+                                    onInput: (e) => { albumSearch.value = e.target.value; }
+                                }),
+                                h('select', {
+                                    class: 'immich-select',
+                                    value: albumSort.value,
+                                    onChange: (e) => { albumSort.value = e.target.value; }
+                                }, [
+                                    h('option', { value: 'name' }, 'Name'),
+                                    h('option', { value: 'date' }, 'Date'),
+                                    h('option', { value: 'count' }, 'Count'),
+                                ]),
                             ]),
                             h('ul', null, albumItems),
                             sortedAlbums.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No matching albums.') : null
