@@ -209,14 +209,27 @@ class ApiController extends Controller {
                 
                 $assets = $this->immichClient->getTimeBucket('MONTH', $timeBucket, $isFavorite);
                 
-                // getTimeBucket returns an array of asset objects
-                // Each asset has id, originalFileName, type, isFavorite, etc.
-                if (is_array($assets)) {
-                    foreach ($assets as $asset) {
-                        // Only add if it has an 'id' field (is a valid asset)
-                        if (isset($asset['id'])) {
-                            $allAssets[] = $asset;
+                // Log the raw response structure for debugging
+                $this->logger->info('Timeline bucket response: ' . json_encode(array_keys($assets ?? [])), [
+                    'app' => 'immich_bridge',
+                    'timeBucket' => $timeBucket,
+                ]);
+                
+                // getTimeBucket returns an array of asset objects (numeric keys)
+                if (is_array($assets) && !empty($assets)) {
+                    // Check if it's a numeric array (list of assets) or associative (single object)
+                    $isNumeric = array_keys($assets) === range(0, count($assets) - 1);
+                    
+                    if ($isNumeric) {
+                        // It's a list of assets
+                        foreach ($assets as $asset) {
+                            if (is_array($asset) && isset($asset['id'])) {
+                                $allAssets[] = $asset;
+                            }
                         }
+                    } else if (isset($assets['id'])) {
+                        // It's a single asset object
+                        $allAssets[] = $assets;
                     }
                 }
                 $count++;
