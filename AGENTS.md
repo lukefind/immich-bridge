@@ -142,7 +142,7 @@ If a route “should exist” but you still get HTML 404 or method mismatch:
 
 ## 10) Learning log (append-only)
 
-### 2025-12-13
+### 2025-12-13 (Session 1)
 - Added `/api/assets/{id}/preview` route.
 - Observed: hitting `/preview` returned Nextcloud HTML "Page not found" on the server.
   - Root cause: route not active in deployed instance (stale route cache / mismatched deployed code).
@@ -161,3 +161,37 @@ If a route “should exist” but you still get HTML 404 or method mismatch:
   - Root cause: Nextcloud or browser default button styles overriding custom styles.
   - Fix: Use `!important` on background/border/color and dark pill-shaped design with blur backdrop.
 - Added All Photos view with filters (favorites, rating, tags) using Immich search/metadata API.
+
+### 2025-12-13 (Session 2)
+- Switched from Immich timeline API to `POST /search/metadata` for All Photos view.
+  - Timeline API (`/timeline/buckets`, `/timeline/bucket`) had inconsistent response structures.
+  - Search metadata API is more reliable and supports rating filter.
+- Added star rating filter (≥1★ to 5★) using Immich's rating field.
+- Added year filter with timeline scroller on right side.
+- Added "Load More" pagination (500 photos per page).
+- Lightbox redesigned to match Nextcloud Memories style:
+  - Solid header bar with filename and counter
+  - Blue rounded square buttons (44x44px) for actions
+  - Blue nav arrows on sides
+- Default view changed from Albums to All Photos.
+- Added "Save Album to Nextcloud" feature - saves all photos to a folder (creates folder if needed).
+- Album sort options: Newest Photos (by endDate), Recently Updated, Name, Photo Count.
+- Added ascending/descending toggle button for album sort.
+- Observed: `key` parameter in thumbnail requests caused 401 errors.
+  - Root cause: Immich interprets `key` as a share key.
+  - Fix: Removed `key` parameter from thumbnail requests.
+- Observed: Save to Nextcloud failed with "Target folder does not exist".
+  - Root cause: Album folder path didn't exist.
+  - Fix: Create folder path recursively before saving files.
+
+## 11) Security audit (2025-12-13)
+
+✅ **Secure practices verified:**
+- Authentication checks on all endpoints (`getUserId()` returns 401 if not logged in)
+- CSRF protection on POST endpoints (only GET has `@NoCSRFRequired`)
+- Input validation: URL with `filter_var()`, filename with `basename()`
+- User isolation: credentials stored per-user in database
+- No SQL injection: uses Nextcloud ORM/Entity mapper
+- Path traversal protection: `basename()` on filenames, Nextcloud file API for paths
+- API key not exposed in responses (getConfig doesn't return it)
+- All Immich requests proxied through Nextcloud server (no direct client access)

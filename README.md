@@ -2,17 +2,14 @@
 
 Browse your Immich photo library directly from within Nextcloud.
 
-## Nextcloud AIO Playbook (read first)
-
-See: `docs/nextcloud-aio-playbook.md`
-
 ## Features
 
-- **Connect to Immich**: Configure your Immich server URL and API key
-- **Browse Albums**: View all your Immich albums in a sidebar
-- **View Photos**: See thumbnails in a responsive grid layout
-- **View Originals**: View originals in an in-app lightbox (with keyboard navigation)
-- **Disconnect**: Clear your saved config and reconfigure
+- **All Photos View**: Browse all your photos with filters (favorites, star rating, year)
+- **Timeline Navigation**: Year-based timeline scroller for quick navigation
+- **Browse Albums**: View all your Immich albums with sorting options
+- **Lightbox Viewer**: Full-screen image viewer with keyboard navigation (Nextcloud Memories style)
+- **Save to Nextcloud**: Save individual photos or entire albums to your Nextcloud files
+- **Responsive Design**: Works on desktop and mobile devices
 
 ## Requirements
 
@@ -22,60 +19,90 @@ See: `docs/nextcloud-aio-playbook.md`
 
 ## Installation
 
-1. Copy the `immich_nc_app` folder to your Nextcloud `apps/` directory
-2. Enable the app via the Nextcloud Apps page or run:
+### Standard Nextcloud
+
+1. Copy the `immich_nc_app` folder to your Nextcloud `apps/` or `custom_apps/` directory
+2. Enable the app:
    ```bash
    php occ app:enable immich_nc_app
    ```
 
-Notes for Nextcloud AIO:
+### Nextcloud AIO
 
-- The custom apps path is typically:
-  - `/var/lib/docker/volumes/nextcloud_aio_nextcloud/_data/custom_apps/immich_nc_app/`
-- Some AIO images may not include `occ migrations:migrate`. If you don’t have that command, just enable the app and access it; schema changes are handled by Nextcloud on upgrade/first access.
+1. Copy to the custom apps volume:
+   ```bash
+   sudo cp -r immich_nc_app /var/lib/docker/volumes/nextcloud_aio_nextcloud/_data/custom_apps/
+   sudo chown -R www-data:www-data /var/lib/docker/volumes/nextcloud_aio_nextcloud/_data/custom_apps/immich_nc_app
+   ```
+
+2. Enable the app:
+   ```bash
+   sudo docker exec -u www-data nextcloud-aio-nextcloud php occ app:enable immich_nc_app
+   ```
+
+See `docs/nextcloud-aio-playbook.md` for detailed AIO deployment instructions.
 
 ## Configuration
 
-1. Click on "Immich Bridge" in the Nextcloud sidebar
+1. Open "Immich Bridge" from the Nextcloud apps menu
 2. Enter your Immich server base URL (e.g., `https://immich.example.com/api`)
-3. Enter your Immich API key (generate one in Immich under Account Settings > API Keys)
-4. Click "Save Configuration"
+3. Enter your Immich API key
+4. Click "Connect"
 
-## Getting an Immich API Key
+### Getting an Immich API Key
 
 1. Log into your Immich instance
-2. Go to **Account Settings** (click your profile icon)
-3. Navigate to **API Keys**
-4. Click **New API Key**
-5. Give it a name (e.g., "Nextcloud Bridge")
-6. Copy the generated key
+2. Go to **Account Settings** → **API Keys**
+3. Click **New API Key**, name it (e.g., "Nextcloud Bridge")
+4. Copy the generated key
+
+## Usage
+
+### All Photos
+- Default view showing all your photos
+- Filter by: Favorites (♥), Star Rating (≥1★ to 5★), Year
+- Timeline scroller on the right for quick year navigation
+- Click "Load More" to load additional photos
+
+### Albums
+- Sort by: Newest Photos, Recently Updated, Name, Photo Count
+- Toggle ascending/descending with the ↑/↓ button
+- Click an album to view its photos
+- "Save to Nextcloud" button saves all album photos to a folder
+
+### Lightbox
+- Click any photo to open full-screen viewer
+- Keyboard: ← → to navigate, Escape to close
+- Actions: Open in Immich, Download, Save to Nextcloud, Share
 
 ## API Endpoints
 
-The app exposes the following internal API endpoints:
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/config` | Get current configuration status |
+| GET | `/api/config` | Get configuration status |
 | POST | `/api/config` | Save Immich configuration |
-| POST | `/api/config/delete` | Delete saved config (disconnect) |
+| POST | `/api/config/delete` | Delete configuration |
 | GET | `/api/albums` | List all albums |
-| GET | `/api/albums/{id}` | Get album details |
-| GET | `/api/albums/{id}/assets` | List assets in an album |
-| GET | `/api/assets/{id}/thumbnail` | Get asset thumbnail |
-| GET | `/api/assets/{id}/original` | Get original asset |
+| GET | `/api/albums/timeline` | Get photos with filters |
+| GET | `/api/albums/{id}/assets` | List assets in album |
+| GET | `/api/assets/{id}/thumbnail` | Get thumbnail |
+| GET | `/api/assets/{id}/preview` | Get preview (~1440px) |
+| GET | `/api/assets/{id}/original` | Get original file |
+| POST | `/api/assets/{id}/save-to-nextcloud` | Save to Nextcloud |
 
-## Security Notes
+## Security
 
-- API keys are stored in the Nextcloud database per-user
-- All Immich API calls are proxied through Nextcloud (no direct client-to-Immich communication)
-- The app respects Nextcloud's authentication and session management
+- **User isolation**: Each user's Immich credentials stored separately
+- **CSRF protection**: All POST endpoints require CSRF token
+- **Authentication**: All endpoints require Nextcloud login
+- **Input validation**: URL validation, filename sanitization, path traversal protection
+- **Proxied requests**: All Immich API calls go through Nextcloud server (no direct client access)
 
-## Limitations (V1)
+## Limitations
 
-- **Read-only**: No upload, delete, or edit functionality
-- **Albums only**: Timeline/library view not yet implemented
-- **No caching**: Thumbnails are fetched on each request (browser caching helps)
+- **Read-only**: No upload, delete, or edit functionality in Immich
+- **No sync**: Manual refresh required for new photos
+- **Share via Talk**: Not yet implemented
 
 ## License
 
@@ -83,4 +110,4 @@ AGPL-3.0-or-later
 
 ## Contributing
 
-Contributions are welcome! Please open issues or pull requests on the project repository.
+Contributions welcome! Please open issues or pull requests.
