@@ -358,14 +358,24 @@
 /* Filter bar */
 .immich-filter-bar {
     display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
+    gap: 16px;
     align-items: center;
     padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 10px;
+    background: var(--color-background-dark, #212121);
+    border-radius: var(--border-radius, 8px);
     margin-bottom: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    flex-wrap: wrap;
+}
+
+.immich-timeline-slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.immich-timeline-label {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast, #888);
 }
 
 .immich-filter-checkbox {

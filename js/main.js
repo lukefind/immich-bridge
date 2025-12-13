@@ -24,8 +24,12 @@ const ImmichBridgeApp = {
         const photoFilter = reactive({
             isFavorite: false,
             rating: 0,
-            tagId: ''
+            tagId: '',
+            year: null // For timeline slider
         });
+
+        // Available years for timeline slider
+        const availableYears = ref([]);
 
         const isMobile = ref(false);
         const sidebarOpen = ref(false);
@@ -166,9 +170,20 @@ const ImmichBridgeApp = {
             try {
                 const params = new URLSearchParams();
                 if (photoFilter.isFavorite) params.set('isFavorite', 'true');
+                if (photoFilter.year) params.set('year', photoFilter.year);
                 
                 const result = await api(`/albums/timeline?${params.toString()}`);
                 assets.value = result.assets || [];
+                
+                // Extract available years from assets for timeline slider
+                const years = new Set();
+                (result.assets || []).forEach(a => {
+                    if (a.fileDate) {
+                        const year = new Date(a.fileDate).getFullYear();
+                        if (year > 1970) years.add(year);
+                    }
+                });
+                availableYears.value = Array.from(years).sort((a, b) => b - a);
             } catch (err) {
                 error.value = err.message;
                 toastError(err.message);
@@ -241,7 +256,14 @@ const ImmichBridgeApp = {
             const assetId = lightboxAsset.value.id;
             const fileName = lightboxAsset.value.fileName;
             
+            // Temporarily hide lightbox so file picker is visible
+            const lightboxEl = document.querySelector('.immich-lightbox');
+            if (lightboxEl) lightboxEl.style.display = 'none';
+            
             const doSave = async (targetPath) => {
+                // Restore lightbox
+                if (lightboxEl) lightboxEl.style.display = '';
+                
                 try {
                     const response = await fetch(`/apps/immich_nc_app/api/assets/${assetId}/save-to-nextcloud`, {
                         method: 'POST',
@@ -262,6 +284,11 @@ const ImmichBridgeApp = {
                     toastError('Failed to save: ' + err.message);
                 }
             };
+            
+            const onCancel = () => {
+                // Restore lightbox on cancel
+                if (lightboxEl) lightboxEl.style.display = '';
+            };
 
             // Try Nextcloud file picker
             if (typeof OC !== 'undefined' && OC.dialogs && OC.dialogs.filepicker) {
@@ -271,7 +298,9 @@ const ImmichBridgeApp = {
                     false,
                     'httpd/unix-directory',
                     true,
-                    OC.dialogs.FILEPICKER_TYPE_CHOOSE
+                    OC.dialogs.FILEPICKER_TYPE_CHOOSE,
+                    '',
+                    { cancel: onCancel }
                 );
             } else {
                 // Fallback: save to root
@@ -503,6 +532,22 @@ const ImmichBridgeApp = {
 
                 // All Photos view with filters
                 if (activeView.value === 'photos' && configured.value) {
+                    // Timeline slider (year selector)
+                    const timelineSlider = availableYears.value.length > 0 ? h('div', { class: 'immich-timeline-slider' }, [
+                        h('span', { class: 'immich-timeline-label' }, 'Year:'),
+                        h('select', {
+                            class: 'immich-select',
+                            value: photoFilter.year || '',
+                            onChange: (e) => {
+                                photoFilter.year = e.target.value || null;
+                                loadAllPhotos();
+                            }
+                        }, [
+                            h('option', { value: '' }, 'All'),
+                            ...availableYears.value.map(year => h('option', { value: year }, year))
+                        ])
+                    ]) : null;
+
                     const filterBar = h('div', { class: 'immich-filter-bar' }, [
                         h('label', { class: 'immich-filter-checkbox' }, [
                             h('input', {
@@ -512,10 +557,11 @@ const ImmichBridgeApp = {
                             }),
                             'Favorites only'
                         ]),
-                        photoFilter.isFavorite ? h('button', {
+                        timelineSlider,
+                        (photoFilter.isFavorite || photoFilter.year) ? h('button', {
                             class: 'immich-filter-btn',
-                            onClick: () => { photoFilter.isFavorite = false; loadAllPhotos(); }
-                        }, 'Clear') : null
+                            onClick: () => { photoFilter.isFavorite = false; photoFilter.year = null; loadAllPhotos(); }
+                        }, 'Clear filters') : null
                     ]);
 
                     const assetItems = assets.value.map((asset, index) =>

@@ -192,6 +192,7 @@ class ApiController extends Controller {
     public function getTimeline(): JSONResponse {
         try {
             $isFavorite = $this->request->getParam('isFavorite') === 'true';
+            $yearFilter = $this->request->getParam('year');
             
             // Get all albums and collect assets, limiting per album to get variety
             $albums = $this->immichClient->listAlbums();
@@ -229,11 +230,17 @@ class ApiController extends Controller {
                         // Filter by favorite if requested
                         if ($isFavorite && empty($asset['isFavorite'])) continue;
                         
+                        // Get file date for sorting and filtering
+                        $fileDate = $asset['fileCreatedAt'] ?? $asset['createdAt'] ?? null;
+                        
+                        // Filter by year if requested
+                        if ($yearFilter && $fileDate) {
+                            $assetYear = date('Y', strtotime($fileDate));
+                            if ($assetYear !== $yearFilter) continue;
+                        }
+                        
                         $seenIds[$assetId] = true;
                         $addedFromAlbum++;
-                        
-                        // Get file date for sorting
-                        $fileDate = $asset['fileCreatedAt'] ?? $asset['createdAt'] ?? null;
                         
                         $allAssets[] = [
                             'id' => $assetId,
