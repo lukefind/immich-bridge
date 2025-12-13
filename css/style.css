@@ -466,11 +466,6 @@
     border-radius: var(--border-radius-large, 12px);
 }
 
-@media (max-width: 768px) {
-    .immich-settings {
-        margin-top: 70px; /* Space for hamburger button */
-    }
-}
 
 .immich-settings h2 {
     margin: 0 0 8px 0;
@@ -597,7 +592,6 @@
 /* Mobile album list in main content */
 .immich-mobile-albums {
     padding: 16px;
-    padding-top: 70px; /* Space for hamburger button */
 }
 
 .immich-mobile-albums .immich-album-controls {
@@ -718,10 +712,19 @@
 
     .immich-assets {
         padding: 16px;
+        padding-top: 70px;
     }
 
     .immich-placeholder {
-        padding-top: 0;
+        padding-top: 70px;
+    }
+
+    .immich-settings {
+        margin-top: 70px;
+    }
+
+    .immich-mobile-albums {
+        padding-top: 70px;
     }
 }
 
