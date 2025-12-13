@@ -17,5 +17,6 @@ return [
         ['name' => 'api#getThumbnail', 'url' => '/api/assets/{assetId}/thumbnail', 'verb' => 'GET'],
         ['name' => 'api#getPreview', 'url' => '/api/assets/{assetId}/preview', 'verb' => 'GET'],
         ['name' => 'api#getOriginal', 'url' => '/api/assets/{assetId}/original', 'verb' => 'GET'],
+        ['name' => 'api#saveToNextcloud', 'url' => '/api/assets/{assetId}/save-to-nextcloud', 'verb' => 'POST'],
     ]
 ];

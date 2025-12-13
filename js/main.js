@@ -203,6 +203,52 @@ const ImmichBridgeApp = {
             }
         };
 
+        const saveToNextcloud = async () => {
+            if (!lightboxAsset.value) return;
+            
+            // Use Nextcloud file picker if available
+            if (typeof OC !== 'undefined' && OC.dialogs && OC.dialogs.filepicker) {
+                OC.dialogs.filepicker(
+                    'Select folder to save image',
+                    async (targetPath) => {
+                        try {
+                            const response = await fetch(`/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/save-to-nextcloud`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'requesttoken': OC.requestToken
+                                },
+                                body: JSON.stringify({ targetPath, fileName: lightboxAsset.value.fileName })
+                            });
+                            if (response.ok) {
+                                toast(`Saved to ${targetPath}`);
+                            } else {
+                                const data = await response.json();
+                                toastError(data.error || 'Failed to save');
+                            }
+                        } catch (err) {
+                            toastError('Failed to save: ' + err.message);
+                        }
+                    },
+                    false,
+                    'httpd/unix-directory',
+                    true
+                );
+            } else {
+                toastError('File picker not available');
+            }
+        };
+
+        const shareViaTalk = async () => {
+            if (!lightboxAsset.value) return;
+            
+            // Open Talk conversation picker or share dialog
+            if (typeof OC !== 'undefined' && OC.dialogs) {
+                // For now, show a simple prompt - full Talk integration would need Talk API
+                toast('Share via Talk coming soon');
+            }
+        };
+
         const refreshAlbums = async () => {
             error.value = null;
             await loadAlbums();
@@ -274,20 +320,23 @@ const ImmichBridgeApp = {
                         h('div', {
                             class: ['immich-nav-link', activeView.value === 'albums' ? 'active' : null, !configured.value ? 'disabled' : null],
                             onClick: configured.value ? showAlbums : null
-                        }, 'Albums'),
+                        }, [h('span', { class: 'nav-icon' }, '📁'), 'Albums']),
                         h('div', {
                             class: ['immich-nav-link', activeView.value === 'settings' ? 'active' : null],
                             onClick: showSettings
-                        }, 'Settings'),
+                        }, [h('span', { class: 'nav-icon' }, '⚙'), 'Settings']),
                         h('div', { class: 'immich-nav-sep' }),
-                        h('div', { class: ['immich-nav-link', 'disabled'] }, 'Favorites'),
-                        h('div', { class: ['immich-nav-link', 'disabled'] }, 'Recents'),
-                        h('div', { class: ['immich-nav-link', 'disabled'] }, 'People'),
+                        h('div', { class: ['immich-nav-link', 'disabled'] }, [h('span', { class: 'nav-icon' }, '❤'), 'Favorites']),
+                        h('div', { class: ['immich-nav-link', 'disabled'] }, [h('span', { class: 'nav-icon' }, '🕐'), 'Recents']),
+                        h('div', { class: ['immich-nav-link', 'disabled'] }, [h('span', { class: 'nav-icon' }, '👤'), 'People']),
                     ])
                 ]);
 
                 const sidebarHeader = h('div', { class: 'immich-sidebar-header' }, [
-                    h('div', { class: 'immich-sidebar-title' }, 'Immich Bridge'),
+                    h('div', { class: 'immich-sidebar-title' }, [
+                        h('span', { class: 'immich-sidebar-logo' }, '🖼'),
+                        'Immich Bridge'
+                    ]),
                     isMobile.value ? h('button', { class: 'immich-sidebar-close', onClick: closeSidebar, title: 'Close menu' }, '✕') : null
                 ]);
 
@@ -480,7 +529,19 @@ const ImmichBridgeApp = {
                         class: 'immich-lightbox-newtab',
                         onClick: openInNewTab,
                         title: 'Open in new tab'
-                    }, '↗')
+                    }, '↗'),
+                    h('div', { class: 'immich-lightbox-actions' }, [
+                        h('button', {
+                            class: 'immich-lightbox-action',
+                            onClick: saveToNextcloud,
+                            title: 'Save to Nextcloud'
+                        }, [h('span', null, '💾'), ' Save']),
+                        h('button', {
+                            class: 'immich-lightbox-action',
+                            onClick: shareViaTalk,
+                            title: 'Share via Talk'
+                        }, [h('span', null, '💬'), ' Share'])
+                    ])
                 ]);
 
                 children.push(h(Teleport, { to: 'body' }, [lightbox]));

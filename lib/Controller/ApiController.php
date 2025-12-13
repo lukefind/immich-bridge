@@ -11,6 +11,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\AppFramework\Http\JSONResponse;
+use OCP\Files\IRootFolder;
 use OCP\IRequest;
 use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
@@ -20,6 +21,7 @@ class ApiController extends Controller {
     private IUserSession $userSession;
     private UserConfigService $configService;
     private ImmichClient $immichClient;
+    private IRootFolder $rootFolder;
     private LoggerInterface $logger;
 
     public function __construct(
@@ -27,12 +29,14 @@ class ApiController extends Controller {
         IUserSession $userSession,
         UserConfigService $configService,
         ImmichClient $immichClient,
+        IRootFolder $rootFolder,
         LoggerInterface $logger
     ) {
         parent::__construct(Application::APP_ID, $request);
         $this->userSession = $userSession;
         $this->configService = $configService;
         $this->immichClient = $immichClient;
+        $this->rootFolder = $rootFolder;
         $this->logger = $logger;
     }
 
@@ -318,6 +322,82 @@ class ApiController extends Controller {
                 'app' => 'immich_bridge',
             ]);
             return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_GATEWAY);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     *
+     * Save asset to Nextcloud folder
+     *
+     * @param string $assetId
+     * @return JSONResponse
+     */
+    public function saveToNextcloud(string $assetId): JSONResponse {
+        try {
+            $userId = $this->getUserId();
+            if (!$userId) {
+                return new JSONResponse(['error' => 'Not authenticated'], Http::STATUS_UNAUTHORIZED);
+            }
+
+            $targetPath = $this->request->getParam('targetPath', '/');
+            $fileName = $this->request->getParam('fileName', 'image.jpg');
+
+            // Sanitize filename
+            $fileName = basename($fileName);
+            if (empty($fileName)) {
+                $fileName = 'image_' . $assetId . '.jpg';
+            }
+
+            // Get the original image from Immich
+            $result = $this->immichClient->streamOriginal($assetId);
+
+            // Get user's folder
+            $userFolder = $this->rootFolder->getUserFolder($userId);
+            
+            // Ensure target path exists and get the folder
+            $targetPath = trim($targetPath, '/');
+            if (empty($targetPath)) {
+                $folder = $userFolder;
+            } else {
+                if (!$userFolder->nodeExists($targetPath)) {
+                    return new JSONResponse(['error' => 'Target folder does not exist'], Http::STATUS_BAD_REQUEST);
+                }
+                $folder = $userFolder->get($targetPath);
+                if ($folder->getType() !== \OCP\Files\FileInfo::TYPE_FOLDER) {
+                    return new JSONResponse(['error' => 'Target is not a folder'], Http::STATUS_BAD_REQUEST);
+                }
+            }
+
+            // Check if file already exists, add suffix if needed
+            $finalName = $fileName;
+            $counter = 1;
+            $pathInfo = pathinfo($fileName);
+            $baseName = $pathInfo['filename'] ?? 'image';
+            $extension = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
+            
+            while ($folder->nodeExists($finalName)) {
+                $finalName = $baseName . '_' . $counter . $extension;
+                $counter++;
+            }
+
+            // Create the file
+            $file = $folder->newFile($finalName);
+            $file->putContent($result['body']);
+
+            $this->logger->info('Saved Immich asset to Nextcloud: ' . $targetPath . '/' . $finalName, [
+                'app' => 'immich_bridge',
+            ]);
+
+            return new JSONResponse([
+                'success' => true,
+                'path' => $targetPath . '/' . $finalName
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to save to Nextcloud: ' . $e->getMessage(), [
+                'app' => 'immich_bridge',
+            ]);
+            return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 }
