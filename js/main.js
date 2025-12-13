@@ -346,6 +346,68 @@ const ImmichBridgeApp = {
             toast('Share via Talk - coming soon!');
         };
 
+        const saveAlbumToNextcloud = async (album) => {
+            if (!album || !assets.value.length) {
+                toastError('No photos to save');
+                return;
+            }
+            
+            const albumTitle = album.title || 'Album';
+            const assetCount = assets.value.length;
+            
+            const doSave = async (targetPath) => {
+                const folderPath = `${targetPath}/${albumTitle}`.replace(/\/+/g, '/');
+                toast(`Saving ${assetCount} photos to ${folderPath}...`);
+                
+                let saved = 0;
+                let failed = 0;
+                
+                for (const asset of assets.value) {
+                    try {
+                        const response = await fetch(`/apps/immich_nc_app/api/assets/${asset.id}/save-to-nextcloud`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'requesttoken': typeof OC !== 'undefined' ? OC.requestToken : ''
+                            },
+                            body: JSON.stringify({ 
+                                targetPath: folderPath, 
+                                fileName: asset.fileName 
+                            })
+                        });
+                        if (response.ok) {
+                            saved++;
+                        } else {
+                            failed++;
+                        }
+                    } catch (err) {
+                        failed++;
+                    }
+                }
+                
+                if (failed === 0) {
+                    toast(`Saved ${saved} photos to ${folderPath}`);
+                } else {
+                    toast(`Saved ${saved} photos, ${failed} failed`);
+                }
+            };
+
+            if (typeof OC !== 'undefined' && OC.dialogs && OC.dialogs.filepicker) {
+                OC.dialogs.filepicker(
+                    `Select folder to save "${albumTitle}" (${assetCount} photos)`,
+                    (targetPath) => doSave(targetPath),
+                    false,
+                    'httpd/unix-directory',
+                    true,
+                    OC.dialogs.FILEPICKER_TYPE_CHOOSE
+                );
+            } else {
+                if (confirm(`Save ${assetCount} photos to Nextcloud root folder?`)) {
+                    doSave('/');
+                }
+            }
+        };
+
         const refreshAlbums = async () => {
             error.value = null;
             await loadAlbums();
@@ -397,7 +459,10 @@ const ImmichBridgeApp = {
 
             await loadConfig();
             if (configured.value) {
+                // Default to All Photos view
+                activeView.value = 'photos';
                 await loadAlbums();
+                await loadAllPhotos();
             }
             // Add keyboard listener for lightbox
             document.addEventListener('keydown', handleKeydown);
@@ -553,7 +618,14 @@ const ImmichBridgeApp = {
 
                         mainContent = [
                             h('div', { class: 'immich-main-header' }, [
-                                h('h3', null, selectedAlbum.value.title)
+                                h('h3', null, selectedAlbum.value.title),
+                                h('div', { class: 'immich-album-actions' }, [
+                                    h('button', {
+                                        class: 'immich-btn immich-btn-secondary',
+                                        onClick: () => saveAlbumToNextcloud(selectedAlbum.value),
+                                        title: 'Save all photos to Nextcloud folder'
+                                    }, '📁 Save to Nextcloud'),
+                                ])
                             ]),
                             h('div', { class: 'immich-grid' }, assetItems),
                             assets.value.length === 0 ? h('p', { class: 'immich-no-assets' }, 'No photos in this album.') : null
@@ -716,65 +788,77 @@ const ImmichBridgeApp = {
             // Lightbox modal (teleported to body to avoid Nextcloud stacking contexts)
             if (lightboxOpen.value && lightboxAsset.value) {
                 const base = `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}`;
-                // Load preview (large ~1440px) first, fall back to original if preview fails
                 const previewSrc = `${base}/preview`;
                 const originalSrc = `${base}/original`;
                 const candidates = [previewSrc, originalSrc];
+
+                // Header with actions (Nextcloud Photos style)
+                const lightboxHeader = h('div', { class: 'immich-lightbox-header' }, [
+                    h('div', { class: 'immich-lightbox-title' }, [
+                        h('span', { class: 'immich-lightbox-filename' }, lightboxAsset.value.fileName),
+                        h('span', { class: 'immich-lightbox-counter' }, `${lightboxIndex.value + 1} / ${assets.value.length}`)
+                    ]),
+                    h('div', { class: 'immich-lightbox-toolbar' }, [
+                        h('button', {
+                            class: 'immich-lightbox-btn',
+                            onClick: openInNewTab,
+                            title: 'Open in Immich'
+                        }, [h('span', { class: 'icon' }, '↗'), h('span', { class: 'label' }, 'Open')]),
+                        h('button', {
+                            class: 'immich-lightbox-btn',
+                            onClick: () => window.open(originalSrc, '_blank'),
+                            title: 'Download original'
+                        }, [h('span', { class: 'icon' }, '↓'), h('span', { class: 'label' }, 'Download')]),
+                        h('button', {
+                            class: 'immich-lightbox-btn',
+                            onClick: saveToNextcloud,
+                            title: 'Save to Nextcloud'
+                        }, [h('span', { class: 'icon' }, '📁'), h('span', { class: 'label' }, 'Save')]),
+                        h('button', {
+                            class: 'immich-lightbox-btn',
+                            onClick: shareViaTalk,
+                            title: 'Share'
+                        }, [h('span', { class: 'icon' }, '↪'), h('span', { class: 'label' }, 'Share')]),
+                        h('button', {
+                            class: 'immich-lightbox-btn immich-lightbox-close-btn',
+                            onClick: closeLightbox,
+                            title: 'Close'
+                        }, '✕')
+                    ])
+                ]);
 
                 const lightbox = h('div', {
                     class: 'immich-lightbox',
                     onClick: (e) => { if (e.target.classList.contains('immich-lightbox')) closeLightbox(); }
                 }, [
-                    h('div', { class: 'immich-lightbox-content' }, [
-                        h('img', {
-                            key: lightboxAsset.value.id,
-                            src: previewSrc,
-                            alt: lightboxAsset.value.fileName,
-                            'data-fallback-index': '0',
-                            onError: (e) => {
-                                const img = e.target;
-                                const idx = parseInt(img.dataset.fallbackIndex || '0', 10);
-                                const next = candidates[idx + 1];
-                                if (!next) return;
-                                img.dataset.fallbackIndex = String(idx + 1);
-                                img.src = next;
-                            }
-                        }),
-                        h('div', { class: 'immich-lightbox-info' }, [
-                            h('span', null, lightboxAsset.value.fileName),
-                            h('span', null, `${lightboxIndex.value + 1} / ${assets.value.length}`)
-                        ])
-                    ]),
-                    h('button', {
-                        class: 'immich-lightbox-close',
-                        onClick: closeLightbox
-                    }, '✕'),
-                    h('button', {
-                        class: 'immich-lightbox-prev',
-                        onClick: prevImage,
-                        disabled: lightboxIndex.value === 0
-                    }, '‹'),
-                    h('button', {
-                        class: 'immich-lightbox-next',
-                        onClick: nextImage,
-                        disabled: lightboxIndex.value === assets.value.length - 1
-                    }, '›'),
-                    h('button', {
-                        class: 'immich-lightbox-newtab',
-                        onClick: openInNewTab,
-                        title: 'Open in new tab'
-                    }, '↗'),
-                    h('div', { class: 'immich-lightbox-actions' }, [
+                    lightboxHeader,
+                    h('div', { class: 'immich-lightbox-body' }, [
                         h('button', {
-                            class: 'immich-lightbox-action',
-                            onClick: saveToNextcloud,
-                            title: 'Save to Nextcloud'
-                        }, [h('span', null, '💾'), ' Save']),
+                            class: 'immich-lightbox-nav immich-lightbox-prev',
+                            onClick: prevImage,
+                            disabled: lightboxIndex.value === 0
+                        }, h('span', null, '‹')),
+                        h('div', { class: 'immich-lightbox-image-container' }, [
+                            h('img', {
+                                key: lightboxAsset.value.id,
+                                src: previewSrc,
+                                alt: lightboxAsset.value.fileName,
+                                'data-fallback-index': '0',
+                                onError: (e) => {
+                                    const img = e.target;
+                                    const idx = parseInt(img.dataset.fallbackIndex || '0', 10);
+                                    const next = candidates[idx + 1];
+                                    if (!next) return;
+                                    img.dataset.fallbackIndex = String(idx + 1);
+                                    img.src = next;
+                                }
+                            })
+                        ]),
                         h('button', {
-                            class: 'immich-lightbox-action',
-                            onClick: shareViaTalk,
-                            title: 'Share via Talk'
-                        }, [h('span', null, '💬'), ' Share'])
+                            class: 'immich-lightbox-nav immich-lightbox-next',
+                            onClick: nextImage,
+                            disabled: lightboxIndex.value === assets.value.length - 1
+                        }, h('span', null, '›'))
                     ])
                 ]);
 
