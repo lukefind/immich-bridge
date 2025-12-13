@@ -155,6 +155,16 @@ If you need to reset stored Immich config:
 - **Routes changed but still 404/405**
   - Disable/enable app; prefer POST over DELETE.
 
+- **API endpoint returns Nextcloud "Page not found" HTML (not JSON/image)**
+  - Root cause: the route isn't registered (stale route cache) or the deployed app code doesn't match your local `routes.php`.
+  - Fix:
+    - Confirm the file exists in AIO volume:
+      - `/var/lib/docker/volumes/nextcloud_aio_nextcloud/_data/custom_apps/immich_nc_app/appinfo/routes.php`
+    - Disable/enable the app to reload routes:
+      - `sudo docker exec -u www-data nextcloud-aio-nextcloud php occ app:disable immich_nc_app`
+      - `sudo docker exec -u www-data nextcloud-aio-nextcloud php occ app:enable immich_nc_app`
+    - Hard refresh your browser.
+
 - **Albums empty + 502 from Nextcloud**
   - `curl` from inside `nextcloud-aio-nextcloud` to Immich.
   - Use a reachable URL (often the public HTTPS endpoint).

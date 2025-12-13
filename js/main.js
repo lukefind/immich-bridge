@@ -432,7 +432,11 @@ const ImmichBridgeApp = {
 
             // Lightbox modal
             if (lightboxOpen.value && lightboxAsset.value) {
-                const src = `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/preview`;
+                const base = `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}`;
+                const previewSrc = `${base}/preview`;
+                const thumbSrc = `${base}/thumbnail`;
+                const originalSrc = `${base}/original`;
+                const candidates = [previewSrc, thumbSrc, originalSrc];
 
                 children.push(
                     h('div', { 
@@ -441,8 +445,18 @@ const ImmichBridgeApp = {
                     }, [
                         h('div', { class: 'immich-lightbox-content' }, [
                             h('img', {
-                                src,
-                                alt: lightboxAsset.value.fileName
+                                key: lightboxAsset.value.id,
+                                src: previewSrc,
+                                alt: lightboxAsset.value.fileName,
+                                'data-fallback-index': '0',
+                                onError: (e) => {
+                                    const img = e.target;
+                                    const idx = parseInt(img.dataset.fallbackIndex || '0', 10);
+                                    const next = candidates[idx + 1];
+                                    if (!next) return;
+                                    img.dataset.fallbackIndex = String(idx + 1);
+                                    img.src = next;
+                                }
                             }),
                             h('div', { class: 'immich-lightbox-info' }, [
                                 h('span', null, lightboxAsset.value.fileName),
