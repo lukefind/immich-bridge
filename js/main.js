@@ -167,7 +167,7 @@ const ImmichBridgeApp = {
                 const params = new URLSearchParams();
                 if (photoFilter.isFavorite) params.set('isFavorite', 'true');
                 
-                const result = await api(`/photos/all?${params.toString()}`);
+                const result = await api(`/albums/timeline?${params.toString()}`);
                 assets.value = result.assets || [];
             } catch (err) {
                 error.value = err.message;
