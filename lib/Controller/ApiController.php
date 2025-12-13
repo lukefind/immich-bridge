@@ -347,13 +347,12 @@ class ApiController extends Controller {
      */
     public function getThumbnail(string $assetId): DataDisplayResponse|JSONResponse {
         try {
+            // Only use size parameter - 'key' is reserved for share keys in Immich
             $size = (string) $this->request->getParam('size', '');
-            $key = (string) $this->request->getParam('key', '');
-            $format = (string) $this->request->getParam('format', '');
 
             try {
-                $result = ($size !== '' || $key !== '' || $format !== '')
-                    ? $this->immichClient->streamThumbnailVariant($assetId, $size, $key, $format)
+                $result = ($size !== '')
+                    ? $this->immichClient->streamThumbnailVariant($assetId, $size, '', '')
                     : $this->immichClient->streamThumbnail($assetId);
             } catch (\Exception $e) {
                 $result = $this->immichClient->streamThumbnail($assetId);
