@@ -179,6 +179,28 @@ class ImmichClient {
     }
 
     /**
+     * Get preview image for an asset (larger than grid thumbnail)
+     *
+     * Immich supports generating different thumbnail variants. The exact query
+     * parameters have changed over time, so this method tries a best-effort
+     * request and falls back to the standard thumbnail if unsupported.
+     *
+     * @param string $assetId
+     * @return array{body: string, contentType: string}
+     */
+    public function streamPreview(string $assetId): array {
+        $encoded = urlencode($assetId);
+
+        // Best-effort: some Immich versions support requesting a larger thumbnail/preview via query.
+        // If the server rejects it, fall back to the default thumbnail endpoint.
+        try {
+            return $this->getBinary('assets/' . $encoded . '/thumbnail?size=preview');
+        } catch (\Exception $e) {
+            return $this->streamThumbnail($assetId);
+        }
+    }
+
+    /**
      * Get original asset
      *
      * @param string $assetId

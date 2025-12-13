@@ -26,7 +26,6 @@ const ImmichBridgeApp = {
         const lightboxOpen = ref(false);
         const lightboxAsset = ref(null);
         const lightboxIndex = ref(0);
-        const lightboxHd = ref(false);
 
         const api = async (path, options = {}) => {
             // Add CSRF token for POST/DELETE requests
@@ -147,20 +146,17 @@ const ImmichBridgeApp = {
             lightboxAsset.value = asset;
             lightboxIndex.value = index;
             lightboxOpen.value = true;
-            lightboxHd.value = false;
         };
 
         const closeLightbox = () => {
             lightboxOpen.value = false;
             lightboxAsset.value = null;
-            lightboxHd.value = false;
         };
 
         const nextImage = () => {
             if (lightboxIndex.value < assets.value.length - 1) {
                 lightboxIndex.value++;
                 lightboxAsset.value = assets.value[lightboxIndex.value];
-                lightboxHd.value = false;
             }
         };
 
@@ -168,7 +164,6 @@ const ImmichBridgeApp = {
             if (lightboxIndex.value > 0) {
                 lightboxIndex.value--;
                 lightboxAsset.value = assets.value[lightboxIndex.value];
-                lightboxHd.value = false;
             }
         };
 
@@ -193,10 +188,6 @@ const ImmichBridgeApp = {
             if (lightboxAsset.value) {
                 window.open(`/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/original`, '_blank');
             }
-        };
-
-        const toggleHd = () => {
-            lightboxHd.value = !lightboxHd.value;
         };
 
         const refreshAlbums = async () => {
@@ -430,9 +421,7 @@ const ImmichBridgeApp = {
 
             // Lightbox modal
             if (lightboxOpen.value && lightboxAsset.value) {
-                const src = lightboxHd.value
-                    ? `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/original`
-                    : `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/thumbnail`;
+                const src = `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/preview`;
 
                 children.push(
                     h('div', { 
@@ -449,11 +438,6 @@ const ImmichBridgeApp = {
                                 h('span', null, `${lightboxIndex.value + 1} / ${assets.value.length}`)
                             ])
                         ]),
-                        h('button', {
-                            class: 'immich-lightbox-hd',
-                            onClick: toggleHd,
-                            title: lightboxHd.value ? 'Show preview' : 'Load HD'
-                        }, lightboxHd.value ? 'SD' : 'HD'),
                         h('button', { 
                             class: 'immich-lightbox-close',
                             onClick: closeLightbox

@@ -179,6 +179,32 @@ class ApiController extends Controller {
      * @NoAdminRequired
      * @NoCSRFRequired
      *
+     * Get preview-sized image for an asset (used by the lightbox)
+     *
+     * @param string $assetId
+     * @return DataDisplayResponse|JSONResponse
+     */
+    public function getPreview(string $assetId): DataDisplayResponse|JSONResponse {
+        try {
+            $result = $this->immichClient->streamPreview($assetId);
+
+            $response = new DataDisplayResponse($result['body']);
+            $response->addHeader('Content-Type', $result['contentType']);
+            $response->cacheFor(3600); // Cache for 1 hour
+
+            return $response;
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to fetch preview: ' . $e->getMessage(), [
+                'app' => 'immich_bridge',
+            ]);
+            return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_GATEWAY);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     *
      * Get a specific album from Immich
      *
      * @param string $albumId
