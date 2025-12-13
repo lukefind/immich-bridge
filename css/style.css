@@ -611,11 +611,12 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.95);
+    background: rgba(0, 0, 0, 0.92);
     z-index: 2147483647;
     display: flex;
     align-items: center;
     justify-content: center;
+    backdrop-filter: blur(4px);
 }
 
 .immich-lightbox-content {
@@ -627,9 +628,11 @@
 }
 
 .immich-lightbox-content img {
-    max-width: 90vw;
-    max-height: calc(90vh - 40px);
+    max-width: 95vw;
+    max-height: calc(95vh - 60px);
     object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .immich-lightbox-info {

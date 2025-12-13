@@ -178,8 +178,11 @@ class ImmichClient {
         return $this->getBinary('assets/' . urlencode($assetId) . '/thumbnail');
     }
 
-    public function streamThumbnailVariant(string $assetId, string $key = '', string $format = ''): array {
+    public function streamThumbnailVariant(string $assetId, string $size = '', string $key = '', string $format = ''): array {
         $params = [];
+        if ($size !== '') {
+            $params['size'] = $size;
+        }
         if ($key !== '') {
             $params['key'] = $key;
         }
