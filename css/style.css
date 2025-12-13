@@ -588,6 +588,37 @@
     font-style: italic;
 }
 
+/* Mobile album list in main content */
+.immich-mobile-albums {
+    padding: 16px;
+}
+
+.immich-mobile-albums .immich-album-controls {
+    margin-bottom: 16px;
+}
+
+.immich-album-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.immich-album-list li {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.immich-album-list li:hover {
+    background: var(--color-background-hover, rgba(255, 255, 255, 0.05));
+}
+
+.immich-album-list li.active {
+    background: var(--color-primary-element, #0082c9);
+    color: var(--color-primary-element-text, #fff);
+}
+
 /* Assets Grid */
 .immich-assets {
     flex: 1;

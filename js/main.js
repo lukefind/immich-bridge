@@ -444,11 +444,38 @@ const ImmichBridgeApp = {
                     );
 
                     if (!selectedAlbum.value) {
-                        mainContent = [
-                            h('div', { class: 'immich-placeholder' }, [
-                                h('p', null, 'Select an album to view photos')
-                            ])
-                        ];
+                        // On mobile, show album list in main content area
+                        if (isMobile.value) {
+                            mainContent = [
+                                h('div', { class: 'immich-mobile-albums' }, [
+                                    h('div', { class: 'immich-album-controls' }, [
+                                        h('input', {
+                                            class: 'immich-search',
+                                            value: albumSearch.value,
+                                            placeholder: 'Search albums…',
+                                            onInput: (e) => { albumSearch.value = e.target.value; }
+                                        }),
+                                        h('select', {
+                                            class: 'immich-select',
+                                            value: albumSort.value,
+                                            onChange: (e) => { albumSort.value = e.target.value; }
+                                        }, [
+                                            h('option', { value: 'name' }, 'Name'),
+                                            h('option', { value: 'date' }, 'Date'),
+                                            h('option', { value: 'count' }, 'Count'),
+                                        ]),
+                                    ]),
+                                    h('ul', { class: 'immich-album-list' }, albumItems),
+                                    sortedAlbums.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No matching albums.') : null
+                                ])
+                            ];
+                        } else {
+                            mainContent = [
+                                h('div', { class: 'immich-placeholder' }, [
+                                    h('p', null, 'Select an album to view photos')
+                                ])
+                            ];
+                        }
                     } else {
                         const assetItems = assets.value.map((asset, index) =>
                             h('div', {
