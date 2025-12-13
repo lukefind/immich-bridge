@@ -5,7 +5,6 @@ const ImmichBridgeApp = {
         const loading = ref(true);
         const configured = ref(false);
         const error = ref(null);
-        const successMessage = ref(null);
 
         const config = reactive({
             baseUrl: "",
@@ -18,6 +17,7 @@ const ImmichBridgeApp = {
 
         const activeView = ref('albums');
         const albumSearch = ref('');
+        const albumSort = ref('name');
 
         const isMobile = ref(false);
         const sidebarOpen = ref(false);
@@ -52,6 +52,16 @@ const ImmichBridgeApp = {
             return res.blob();
         };
 
+        const toast = (msg) => {
+            if (typeof OC !== 'undefined' && OC.Notification && typeof OC.Notification.showTemporary === 'function') {
+                OC.Notification.showTemporary(msg);
+            }
+        };
+
+        const toastError = (msg) => {
+            toast(msg);
+        };
+
         const loadConfig = async () => {
             try {
                 const data = await api(`/config`);
@@ -62,6 +72,7 @@ const ImmichBridgeApp = {
                 }
             } catch (err) {
                 error.value = err.message;
+                toastError(err.message);
             } finally {
                 loading.value = false;
             }
@@ -70,7 +81,6 @@ const ImmichBridgeApp = {
         const saveConfig = async () => {
             loading.value = true;
             error.value = null;
-            successMessage.value = null;
             try {
                 const payload = {
                     baseUrl: config.baseUrl,
@@ -86,12 +96,13 @@ const ImmichBridgeApp = {
                     body: JSON.stringify(payload)
                 });
                 configured.value = true;
-                successMessage.value = "Configuration saved successfully!";
+                toast('Configuration saved');
                 config.apiKey = "";
                 activeView.value = 'albums';
                 await loadAlbums();
             } catch (err) {
                 error.value = err.message;
+                toastError(err.message);
             } finally {
                 loading.value = false;
             }
@@ -129,6 +140,7 @@ const ImmichBridgeApp = {
                 error.value = null;
             } catch (err) {
                 error.value = err.message;
+                toastError(err.message);
             }
         };
 
@@ -139,6 +151,7 @@ const ImmichBridgeApp = {
                 assets.value = await api(`/albums/${album.id}/assets`);
             } catch (err) {
                 error.value = err.message;
+                toastError(err.message);
             }
         };
 
@@ -193,6 +206,7 @@ const ImmichBridgeApp = {
         const refreshAlbums = async () => {
             error.value = null;
             await loadAlbums();
+            toast('Albums refreshed');
         };
 
         const showSettings = () => {
@@ -243,16 +257,6 @@ const ImmichBridgeApp = {
                 children.push(h('div', { class: 'immich-loading' }, 'Loading...'));
             }
 
-            // Error display
-            if (error.value) {
-                children.push(h('div', { class: 'immich-error' }, error.value));
-            }
-
-            // Success message
-            if (successMessage.value) {
-                children.push(h('div', { class: 'immich-success' }, successMessage.value));
-            }
-
             // Main app shell
             if (!loading.value) {
                 let sidebarContent = [];
@@ -266,15 +270,20 @@ const ImmichBridgeApp = {
                 }
 
                 const nav = h('div', { class: 'immich-nav' }, [
-                    h('button', {
-                        class: ['immich-nav-item', activeView.value === 'albums' ? 'active' : null],
-                        onClick: showAlbums,
-                        disabled: !configured.value
-                    }, 'Albums'),
-                    h('button', {
-                        class: ['immich-nav-item', activeView.value === 'settings' ? 'active' : null],
-                        onClick: showSettings
-                    }, 'Settings')
+                    h('div', { class: 'immich-nav-list' }, [
+                        h('div', {
+                            class: ['immich-nav-link', activeView.value === 'albums' ? 'active' : null, !configured.value ? 'disabled' : null],
+                            onClick: configured.value ? showAlbums : null
+                        }, 'Albums'),
+                        h('div', {
+                            class: ['immich-nav-link', activeView.value === 'settings' ? 'active' : null],
+                            onClick: showSettings
+                        }, 'Settings'),
+                        h('div', { class: 'immich-nav-sep' }),
+                        h('div', { class: ['immich-nav-link', 'disabled'] }, 'Favorites'),
+                        h('div', { class: ['immich-nav-link', 'disabled'] }, 'Recents'),
+                        h('div', { class: ['immich-nav-link', 'disabled'] }, 'People'),
+                    ])
                 ]);
 
                 const sidebarHeader = h('div', { class: 'immich-sidebar-header' }, [
@@ -282,29 +291,7 @@ const ImmichBridgeApp = {
                     isMobile.value ? h('button', { class: 'immich-sidebar-close', onClick: closeSidebar, title: 'Close menu' }, '✕') : null
                 ]);
 
-                const sidebarActions = h('div', { class: 'immich-sidebar-actions' }, [
-                    h('button', {
-                        class: 'immich-btn immich-btn-secondary immich-btn-wide',
-                        onClick: refreshAlbums,
-                        disabled: !configured.value,
-                        title: 'Refresh albums'
-                    }, '↻ Refresh'),
-                    h('button', {
-                        class: 'immich-btn immich-btn-secondary immich-btn-wide',
-                        onClick: showSettings,
-                        disabled: !configured.value,
-                        title: 'Settings'
-                    }, 'Settings'),
-                    h('button', {
-                        class: 'immich-btn immich-btn-danger immich-btn-wide',
-                        onClick: logout,
-                        disabled: !configured.value,
-                        title: 'Disconnect from Immich'
-                    }, 'Disconnect')
-                ]);
-
                 sidebarContent.push(sidebarHeader);
-                sidebarContent.push(sidebarActions);
                 sidebarContent.push(nav);
 
                 if (activeView.value === 'albums' && configured.value) {
@@ -313,7 +300,19 @@ const ImmichBridgeApp = {
                         ? albums.value
                         : albums.value.filter(a => (a.title || '').toLowerCase().includes(q));
 
-                    const albumItems = filteredAlbums.map(album =>
+                    const sortedAlbums = [...filteredAlbums].sort((a, b) => {
+                        if (albumSort.value === 'count') {
+                            return (b.assetCount || 0) - (a.assetCount || 0);
+                        }
+                        if (albumSort.value === 'date') {
+                            const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
+                            const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
+                            return bd - ad;
+                        }
+                        return String(a.title || '').localeCompare(String(b.title || ''));
+                    });
+
+                    const albumItems = sortedAlbums.map(album =>
                         h('li', {
                             key: album.id,
                             class: { active: selectedAlbum.value && selectedAlbum.value.id === album.id },
@@ -328,15 +327,27 @@ const ImmichBridgeApp = {
 
                     sidebarContent.push(
                         h('div', { class: 'immich-sidebar-section' }, [
-                            h('h3', null, 'Albums'),
+                            h('div', { class: 'immich-sidebar-row' }, [
+                                h('h3', null, 'Albums'),
+                                h('button', { class: 'immich-icon-btn', onClick: refreshAlbums, title: 'Refresh albums' }, '↻')
+                            ]),
                             h('input', {
                                 class: 'immich-search',
                                 value: albumSearch.value,
                                 placeholder: 'Search albums…',
                                 onInput: (e) => { albumSearch.value = e.target.value; }
                             }),
+                            h('select', {
+                                class: 'immich-select',
+                                value: albumSort.value,
+                                onChange: (e) => { albumSort.value = e.target.value; }
+                            }, [
+                                h('option', { value: 'name' }, 'Sort: Name'),
+                                h('option', { value: 'date' }, 'Sort: Date'),
+                                h('option', { value: 'count' }, 'Sort: Count'),
+                            ]),
                             h('ul', null, albumItems),
-                            filteredAlbums.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No matching albums.') : null
+                            sortedAlbums.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No matching albums.') : null
                         ])
                     );
 

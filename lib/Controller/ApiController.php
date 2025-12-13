@@ -163,6 +163,8 @@ class ApiController extends Controller {
                     'id' => $album['id'] ?? '',
                     'title' => $album['albumName'] ?? 'Untitled',
                     'assetCount' => $album['assetCount'] ?? 0,
+                    'createdAt' => $album['createdAt'] ?? null,
+                    'updatedAt' => $album['updatedAt'] ?? null,
                 ];
             }, $albums);
 

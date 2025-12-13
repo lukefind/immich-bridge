@@ -191,13 +191,28 @@ class ImmichClient {
     public function streamPreview(string $assetId): array {
         $encoded = urlencode($assetId);
 
-        // Best-effort: some Immich versions support requesting a larger thumbnail/preview via query.
-        // If the server rejects it, fall back to the default thumbnail endpoint.
-        try {
-            return $this->getBinary('assets/' . $encoded . '/thumbnail?size=preview');
-        } catch (\Exception $e) {
-            return $this->streamThumbnail($assetId);
+        // Immich generates multiple sizes (thumbnail vs preview). The API has used different
+        // query parameters across versions, so we try a few common variants.
+        $candidates = [
+            'assets/' . $encoded . '/thumbnail?key=preview',
+            'assets/' . $encoded . '/thumbnail?key=preview&format=WEBP',
+            'assets/' . $encoded . '/thumbnail?size=preview',
+        ];
+
+        foreach ($candidates as $endpoint) {
+            try {
+                $result = $this->getBinary($endpoint);
+
+                $ct = strtolower($result['contentType'] ?? '');
+                if (str_starts_with($ct, 'image/')) {
+                    return $result;
+                }
+            } catch (\Exception $e) {
+                // try next
+            }
         }
+
+        return $this->streamThumbnail($assetId);
     }
 
     /**
