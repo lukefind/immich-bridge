@@ -433,10 +433,10 @@ const ImmichBridgeApp = {
             // Lightbox modal (teleported to body to avoid Nextcloud stacking contexts)
             if (lightboxOpen.value && lightboxAsset.value) {
                 const base = `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}`;
-                // Load original directly for best quality; fall back to thumbnail if original fails
+                // Load preview (large ~1440px) first, fall back to original if preview fails
+                const previewSrc = `${base}/preview`;
                 const originalSrc = `${base}/original`;
-                const thumbSrc = `${base}/thumbnail`;
-                const candidates = [originalSrc, thumbSrc];
+                const candidates = [previewSrc, originalSrc];
 
                 const lightbox = h('div', {
                     class: 'immich-lightbox',
@@ -445,7 +445,7 @@ const ImmichBridgeApp = {
                     h('div', { class: 'immich-lightbox-content' }, [
                         h('img', {
                             key: lightboxAsset.value.id,
-                            src: originalSrc,
+                            src: previewSrc,
                             alt: lightboxAsset.value.fileName,
                             'data-fallback-index': '0',
                             onError: (e) => {
