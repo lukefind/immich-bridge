@@ -191,19 +191,28 @@ class ApiController extends Controller {
      */
     public function searchAssets(): JSONResponse {
         try {
-            $filters = [];
+            $isFavorite = $this->request->getParam('isFavorite') === 'true';
             
-            if ($this->request->getParam('isFavorite') === 'true') {
-                $filters['isFavorite'] = true;
+            // Get time buckets first
+            $buckets = $this->immichClient->getTimeBuckets('MONTH', $isFavorite);
+            
+            // Get assets from the most recent buckets (limit to avoid too many requests)
+            $allAssets = [];
+            $maxBuckets = 6; // Get last 6 months
+            $count = 0;
+            
+            foreach ($buckets as $bucket) {
+                if ($count >= $maxBuckets) break;
+                
+                $timeBucket = $bucket['timeBucket'] ?? null;
+                if (!$timeBucket) continue;
+                
+                $assets = $this->immichClient->getTimeBucket('MONTH', $timeBucket, $isFavorite);
+                if (is_array($assets)) {
+                    $allAssets = array_merge($allAssets, $assets);
+                }
+                $count++;
             }
-
-            $page = (int)($this->request->getParam('page', 1));
-            $size = (int)($this->request->getParam('size', 100));
-
-            $result = $this->immichClient->searchAssets($filters, $page, $size);
-            
-            // searchAssets returns { assets: { items: [...], total: N } }
-            $items = $result['assets']['items'] ?? [];
             
             return new JSONResponse([
                 'assets' => array_map(fn($a) => [
@@ -211,11 +220,10 @@ class ApiController extends Controller {
                     'fileName' => $a['originalFileName'] ?? $a['originalPath'] ?? 'Unknown',
                     'type' => $a['type'] ?? 'IMAGE',
                     'isFavorite' => $a['isFavorite'] ?? false,
-                ], $items),
-                'total' => $result['assets']['total'] ?? count($items),
+                ], $allAssets),
             ]);
         } catch (\Exception $e) {
-            $this->logger->error('Failed to search assets: ' . $e->getMessage(), [
+            $this->logger->error('Failed to get timeline assets: ' . $e->getMessage(), [
                 'app' => 'immich_bridge',
             ]);
             return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_GATEWAY);

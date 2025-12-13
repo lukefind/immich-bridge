@@ -169,55 +169,37 @@ class ImmichClient {
     }
 
     /**
-     * Search assets using metadata endpoint (POST /search/metadata)
+     * Get timeline buckets
      *
-     * @param array $filters Optional filters (isFavorite, etc.)
-     * @param int $page Page number (1-indexed)
-     * @param int $size Page size
+     * @param string $size DAY, MONTH, or YEAR
+     * @param bool $isFavorite Filter favorites only
      * @return array
      */
-    public function searchAssets(array $filters = [], int $page = 1, int $size = 100): array {
-        $body = [
-            'page' => $page,
-            'size' => $size,
-        ];
-
-        if (isset($filters['isFavorite']) && $filters['isFavorite']) {
-            $body['isFavorite'] = true;
+    public function getTimeBuckets(string $size = 'MONTH', bool $isFavorite = false): array {
+        $params = ['size' => $size];
+        if ($isFavorite) {
+            $params['isFavorite'] = 'true';
         }
-
-        return $this->post('search/metadata', $body);
+        return $this->get('timeline/buckets?' . http_build_query($params));
     }
 
     /**
-     * POST request to Immich API
+     * Get assets in a specific time bucket
      *
-     * @param string $endpoint
-     * @param array $body
+     * @param string $size DAY, MONTH, or YEAR
+     * @param string $timeBucket The bucket timestamp (e.g., "2024-01-01")
+     * @param bool $isFavorite Filter favorites only
      * @return array
      */
-    private function post(string $endpoint, array $body): array {
-        $client = $this->clientService->newClient();
-        $url = $this->buildUrl($endpoint);
-
-        try {
-            $response = $client->post($url, [
-                'headers' => [
-                    'x-api-key' => $this->getConfig()->getApiKey(),
-                    'Content-Type' => 'application/json',
-                ],
-                'body' => json_encode($body),
-                'timeout' => 30,
-            ]);
-
-            return json_decode($response->getBody(), true);
-        } catch (\Exception $e) {
-            $this->logger->error('Immich API POST error: ' . $e->getMessage(), [
-                'app' => 'immich_bridge',
-                'endpoint' => $endpoint,
-            ]);
-            throw new \Exception('Failed to post to Immich: ' . $e->getMessage());
+    public function getTimeBucket(string $size, string $timeBucket, bool $isFavorite = false): array {
+        $params = [
+            'size' => $size,
+            'timeBucket' => $timeBucket,
+        ];
+        if ($isFavorite) {
+            $params['isFavorite'] = 'true';
         }
+        return $this->get('timeline/bucket?' . http_build_query($params));
     }
 
     /**
