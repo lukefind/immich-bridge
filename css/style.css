@@ -466,6 +466,12 @@
     border-radius: var(--border-radius-large, 12px);
 }
 
+@media (max-width: 768px) {
+    .immich-settings {
+        margin-top: 70px; /* Space for hamburger button */
+    }
+}
+
 .immich-settings h2 {
     margin: 0 0 8px 0;
 }
