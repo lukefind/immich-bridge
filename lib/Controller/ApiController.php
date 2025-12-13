@@ -169,6 +169,8 @@ class ApiController extends Controller {
                     'assetCount' => $album['assetCount'] ?? 0,
                     'createdAt' => $album['createdAt'] ?? null,
                     'updatedAt' => $album['updatedAt'] ?? null,
+                    'startDate' => $album['startDate'] ?? null, // Oldest photo date
+                    'endDate' => $album['endDate'] ?? null,     // Newest photo date
                 ];
             }, $albums);
 

@@ -199,21 +199,22 @@ const ImmichBridgeApp = {
                 totalPhotos.value = result.total || assets.value.length;
                 
                 // Extract available years from assets for timeline slider
-                const years = new Set();
-                assets.value.forEach(a => {
-                    if (a.fileDate) {
-                        const year = new Date(a.fileDate).getFullYear();
-                        if (year > 1970) years.add(year);
-                    }
-                });
-                // Add common years if we don't have data yet
-                if (years.size === 0) {
+                // Only update years on initial load (not when filtering by year)
+                if (!photoFilter.year) {
+                    const years = new Set();
+                    assets.value.forEach(a => {
+                        if (a.fileDate) {
+                            const year = new Date(a.fileDate).getFullYear();
+                            if (year > 1970) years.add(year);
+                        }
+                    });
+                    // Always show a range of years for navigation
                     const currentYear = new Date().getFullYear();
-                    for (let y = currentYear; y >= currentYear - 20; y--) {
+                    for (let y = currentYear; y >= currentYear - 30; y--) {
                         years.add(y);
                     }
+                    availableYears.value = Array.from(years).sort((a, b) => b - a);
                 }
-                availableYears.value = Array.from(years).sort((a, b) => b - a);
             } catch (err) {
                 error.value = err.message;
                 toastError(err.message);
