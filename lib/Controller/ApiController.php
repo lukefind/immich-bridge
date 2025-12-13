@@ -193,11 +193,12 @@ class ApiController extends Controller {
         try {
             $isFavorite = $this->request->getParam('isFavorite') === 'true';
             
-            // Get all albums and collect recent assets from each
+            // Get all albums and collect assets, limiting per album to get variety
             $albums = $this->immichClient->listAlbums();
             $allAssets = [];
             $seenIds = [];
-            $maxAssets = 200;
+            $maxTotal = 200;
+            $maxPerAlbum = 20; // Limit per album to get variety
             
             // Sort albums by most recently updated
             usort($albums, function($a, $b) {
@@ -206,8 +207,9 @@ class ApiController extends Controller {
                 return $bTime - $aTime;
             });
             
+            // First pass: get limited assets from each album for variety
             foreach ($albums as $album) {
-                if (count($allAssets) >= $maxAssets) break;
+                if (count($allAssets) >= $maxTotal) break;
                 
                 $albumId = $album['id'] ?? null;
                 if (!$albumId) continue;
@@ -215,9 +217,11 @@ class ApiController extends Controller {
                 try {
                     $albumData = $this->immichClient->getAlbum($albumId);
                     $assets = $albumData['assets'] ?? [];
+                    $addedFromAlbum = 0;
                     
                     foreach ($assets as $asset) {
-                        if (count($allAssets) >= $maxAssets) break;
+                        if (count($allAssets) >= $maxTotal) break;
+                        if ($addedFromAlbum >= $maxPerAlbum) break;
                         
                         $assetId = $asset['id'] ?? null;
                         if (!$assetId || isset($seenIds[$assetId])) continue;
@@ -226,18 +230,30 @@ class ApiController extends Controller {
                         if ($isFavorite && empty($asset['isFavorite'])) continue;
                         
                         $seenIds[$assetId] = true;
+                        $addedFromAlbum++;
+                        
+                        // Get file date for sorting
+                        $fileDate = $asset['fileCreatedAt'] ?? $asset['createdAt'] ?? null;
+                        
                         $allAssets[] = [
                             'id' => $assetId,
                             'fileName' => $asset['originalFileName'] ?? $asset['originalPath'] ?? $assetId,
                             'type' => $asset['type'] ?? 'IMAGE',
                             'isFavorite' => $asset['isFavorite'] ?? false,
+                            'fileDate' => $fileDate,
                         ];
                     }
                 } catch (\Exception $e) {
-                    // Skip albums that fail to load
                     continue;
                 }
             }
+            
+            // Sort by file date descending (newest first)
+            usort($allAssets, function($a, $b) {
+                $aTime = strtotime($a['fileDate'] ?? '1970-01-01');
+                $bTime = strtotime($b['fileDate'] ?? '1970-01-01');
+                return $bTime - $aTime;
+            });
             
             return new JSONResponse(['assets' => $allAssets]);
         } catch (\Exception $e) {
