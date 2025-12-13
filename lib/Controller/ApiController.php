@@ -193,56 +193,53 @@ class ApiController extends Controller {
         try {
             $isFavorite = $this->request->getParam('isFavorite') === 'true';
             
-            // Get time buckets first
-            $buckets = $this->immichClient->getTimeBuckets('MONTH', $isFavorite);
-            
-            // Get assets from the most recent buckets (limit to avoid too many requests)
+            // Get all albums and collect recent assets from each
+            $albums = $this->immichClient->listAlbums();
             $allAssets = [];
-            $maxBuckets = 6; // Get last 6 months
-            $count = 0;
+            $seenIds = [];
+            $maxAssets = 200;
             
-            foreach ($buckets as $bucket) {
-                if ($count >= $maxBuckets) break;
+            // Sort albums by most recently updated
+            usort($albums, function($a, $b) {
+                $aTime = strtotime($a['updatedAt'] ?? $a['createdAt'] ?? '1970-01-01');
+                $bTime = strtotime($b['updatedAt'] ?? $b['createdAt'] ?? '1970-01-01');
+                return $bTime - $aTime;
+            });
+            
+            foreach ($albums as $album) {
+                if (count($allAssets) >= $maxAssets) break;
                 
-                $timeBucket = $bucket['timeBucket'] ?? null;
-                if (!$timeBucket) continue;
+                $albumId = $album['id'] ?? null;
+                if (!$albumId) continue;
                 
-                $assets = $this->immichClient->getTimeBucket('MONTH', $timeBucket, $isFavorite);
-                
-                // Log the raw response structure for debugging
-                $this->logger->info('Timeline bucket response: ' . json_encode(array_keys($assets ?? [])), [
-                    'app' => 'immich_bridge',
-                    'timeBucket' => $timeBucket,
-                ]);
-                
-                // getTimeBucket returns an array of asset objects (numeric keys)
-                if (is_array($assets) && !empty($assets)) {
-                    // Check if it's a numeric array (list of assets) or associative (single object)
-                    $isNumeric = array_keys($assets) === range(0, count($assets) - 1);
+                try {
+                    $albumData = $this->immichClient->getAlbum($albumId);
+                    $assets = $albumData['assets'] ?? [];
                     
-                    if ($isNumeric) {
-                        // It's a list of assets
-                        foreach ($assets as $asset) {
-                            if (is_array($asset) && isset($asset['id'])) {
-                                $allAssets[] = $asset;
-                            }
-                        }
-                    } else if (isset($assets['id'])) {
-                        // It's a single asset object
-                        $allAssets[] = $assets;
+                    foreach ($assets as $asset) {
+                        if (count($allAssets) >= $maxAssets) break;
+                        
+                        $assetId = $asset['id'] ?? null;
+                        if (!$assetId || isset($seenIds[$assetId])) continue;
+                        
+                        // Filter by favorite if requested
+                        if ($isFavorite && empty($asset['isFavorite'])) continue;
+                        
+                        $seenIds[$assetId] = true;
+                        $allAssets[] = [
+                            'id' => $assetId,
+                            'fileName' => $asset['originalFileName'] ?? $asset['originalPath'] ?? $assetId,
+                            'type' => $asset['type'] ?? 'IMAGE',
+                            'isFavorite' => $asset['isFavorite'] ?? false,
+                        ];
                     }
+                } catch (\Exception $e) {
+                    // Skip albums that fail to load
+                    continue;
                 }
-                $count++;
             }
             
-            return new JSONResponse([
-                'assets' => array_values(array_map(fn($a) => [
-                    'id' => $a['id'] ?? '',
-                    'fileName' => $a['originalFileName'] ?? $a['originalPath'] ?? 'Unknown',
-                    'type' => $a['type'] ?? 'IMAGE',
-                    'isFavorite' => $a['isFavorite'] ?? false,
-                ], $allAssets)),
-            ]);
+            return new JSONResponse(['assets' => $allAssets]);
         } catch (\Exception $e) {
             $this->logger->error('Failed to get timeline assets: ' . $e->getMessage(), [
                 'app' => 'immich_bridge',
