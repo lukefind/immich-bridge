@@ -14,10 +14,18 @@ const ImmichBridgeApp = {
         const albums = ref([]);
         const selectedAlbum = ref(null);
         const assets = ref([]);
+        const tags = ref([]);
 
         const activeView = ref('albums');
         const albumSearch = ref('');
         const albumSort = ref('name');
+
+        // All Photos filters
+        const photoFilter = reactive({
+            isFavorite: false,
+            rating: 0,
+            tagId: ''
+        });
 
         const isMobile = ref(false);
         const sidebarOpen = ref(false);
@@ -144,6 +152,31 @@ const ImmichBridgeApp = {
             }
         };
 
+        const loadTags = async () => {
+            try {
+                tags.value = await api(`/tags`);
+            } catch (err) {
+                // Tags may not be available in all Immich versions
+                tags.value = [];
+            }
+        };
+
+        const loadAllPhotos = async () => {
+            error.value = null;
+            try {
+                const params = new URLSearchParams();
+                if (photoFilter.isFavorite) params.set('isFavorite', 'true');
+                if (photoFilter.rating > 0) params.set('rating', String(photoFilter.rating));
+                if (photoFilter.tagId) params.set('tagId', photoFilter.tagId);
+                
+                const result = await api(`/assets?${params.toString()}`);
+                assets.value = result.assets || [];
+            } catch (err) {
+                error.value = err.message;
+                toastError(err.message);
+            }
+        };
+
         const selectAlbum = async (album) => {
             selectedAlbum.value = album;
             error.value = null;
@@ -206,47 +239,49 @@ const ImmichBridgeApp = {
         const saveToNextcloud = async () => {
             if (!lightboxAsset.value) return;
             
-            // Use Nextcloud file picker if available
+            const doSave = async (targetPath) => {
+                try {
+                    const response = await fetch(`/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/save-to-nextcloud`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'requesttoken': typeof OC !== 'undefined' ? OC.requestToken : ''
+                        },
+                        body: JSON.stringify({ targetPath, fileName: lightboxAsset.value.fileName })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        toast(`Saved to ${data.path || targetPath}`);
+                    } else {
+                        const data = await response.json();
+                        toastError(data.error || 'Failed to save');
+                    }
+                } catch (err) {
+                    toastError('Failed to save: ' + err.message);
+                }
+            };
+
+            // Try Nextcloud file picker
             if (typeof OC !== 'undefined' && OC.dialogs && OC.dialogs.filepicker) {
                 OC.dialogs.filepicker(
                     'Select folder to save image',
-                    async (targetPath) => {
-                        try {
-                            const response = await fetch(`/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}/save-to-nextcloud`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'requesttoken': OC.requestToken
-                                },
-                                body: JSON.stringify({ targetPath, fileName: lightboxAsset.value.fileName })
-                            });
-                            if (response.ok) {
-                                toast(`Saved to ${targetPath}`);
-                            } else {
-                                const data = await response.json();
-                                toastError(data.error || 'Failed to save');
-                            }
-                        } catch (err) {
-                            toastError('Failed to save: ' + err.message);
-                        }
-                    },
+                    (targetPath) => doSave(targetPath),
                     false,
                     'httpd/unix-directory',
-                    true
+                    true,
+                    OC.dialogs.FILEPICKER_TYPE_CHOOSE
                 );
             } else {
-                toastError('File picker not available');
+                // Fallback: save to root
+                if (confirm('Save image to your Nextcloud files root folder?')) {
+                    doSave('/');
+                }
             }
         };
 
-        const shareViaTalk = async () => {
+        const shareViaTalk = () => {
             if (!lightboxAsset.value) return;
-            
-            // Open Talk conversation picker or share dialog
-            if (typeof OC !== 'undefined' && OC.dialogs) {
-                // For now, show a simple prompt - full Talk integration would need Talk API
-                toast('Share via Talk coming soon');
-            }
+            toast('Share via Talk - coming soon!');
         };
 
         const refreshAlbums = async () => {
@@ -264,9 +299,20 @@ const ImmichBridgeApp = {
 
         const showAlbums = () => {
             activeView.value = 'albums';
+            selectedAlbum.value = null;
             if (isMobile.value) {
                 sidebarOpen.value = false;
             }
+        };
+
+        const showAllPhotos = async () => {
+            activeView.value = 'photos';
+            selectedAlbum.value = null;
+            if (isMobile.value) {
+                sidebarOpen.value = false;
+            }
+            await loadTags();
+            await loadAllPhotos();
         };
 
         const toggleSidebar = () => {
@@ -318,6 +364,10 @@ const ImmichBridgeApp = {
                 const nav = h('div', { class: 'immich-nav' }, [
                     h('div', { class: 'immich-nav-list' }, [
                         h('div', {
+                            class: ['immich-nav-link', activeView.value === 'photos' ? 'active' : null, !configured.value ? 'disabled' : null],
+                            onClick: configured.value ? showAllPhotos : null
+                        }, [h('span', { class: 'nav-icon' }, '🖼'), 'All Photos']),
+                        h('div', {
                             class: ['immich-nav-link', activeView.value === 'albums' ? 'active' : null, !configured.value ? 'disabled' : null],
                             onClick: configured.value ? showAlbums : null
                         }, [h('span', { class: 'nav-icon' }, '📁'), 'Albums']),
@@ -325,10 +375,6 @@ const ImmichBridgeApp = {
                             class: ['immich-nav-link', activeView.value === 'settings' ? 'active' : null],
                             onClick: showSettings
                         }, [h('span', { class: 'nav-icon' }, '⚙'), 'Settings']),
-                        h('div', { class: 'immich-nav-sep' }),
-                        h('div', { class: ['immich-nav-link', 'disabled'] }, [h('span', { class: 'nav-icon' }, '❤'), 'Favorites']),
-                        h('div', { class: ['immich-nav-link', 'disabled'] }, [h('span', { class: 'nav-icon' }, '🕐'), 'Recents']),
-                        h('div', { class: ['immich-nav-link', 'disabled'] }, [h('span', { class: 'nav-icon' }, '👤'), 'People']),
                     ])
                 ]);
 
@@ -429,6 +475,68 @@ const ImmichBridgeApp = {
                             assets.value.length === 0 ? h('p', { class: 'immich-no-assets' }, 'No photos in this album.') : null
                         ];
                     }
+                }
+
+                // All Photos view with filters
+                if (activeView.value === 'photos' && configured.value) {
+                    const filterBar = h('div', { class: 'immich-filter-bar' }, [
+                        h('label', { class: 'immich-filter-checkbox' }, [
+                            h('input', {
+                                type: 'checkbox',
+                                checked: photoFilter.isFavorite,
+                                onChange: (e) => { photoFilter.isFavorite = e.target.checked; loadAllPhotos(); }
+                            }),
+                            '❤️ Favorites only'
+                        ]),
+                        h('select', {
+                            class: 'immich-filter-select',
+                            value: photoFilter.rating,
+                            onChange: (e) => { photoFilter.rating = parseInt(e.target.value); loadAllPhotos(); }
+                        }, [
+                            h('option', { value: '0' }, 'Any rating'),
+                            h('option', { value: '1' }, '⭐ 1+'),
+                            h('option', { value: '2' }, '⭐⭐ 2+'),
+                            h('option', { value: '3' }, '⭐⭐⭐ 3+'),
+                            h('option', { value: '4' }, '⭐⭐⭐⭐ 4+'),
+                            h('option', { value: '5' }, '⭐⭐⭐⭐⭐ 5'),
+                        ]),
+                        tags.value.length > 0 ? h('select', {
+                            class: 'immich-filter-select',
+                            value: photoFilter.tagId,
+                            onChange: (e) => { photoFilter.tagId = e.target.value; loadAllPhotos(); }
+                        }, [
+                            h('option', { value: '' }, 'All tags'),
+                            ...tags.value.map(t => h('option', { value: t.id }, t.name))
+                        ]) : null,
+                        h('button', {
+                            class: 'immich-filter-btn',
+                            onClick: () => { photoFilter.isFavorite = false; photoFilter.rating = 0; photoFilter.tagId = ''; loadAllPhotos(); }
+                        }, 'Clear filters')
+                    ]);
+
+                    const assetItems = assets.value.map((asset, index) =>
+                        h('div', {
+                            key: asset.id,
+                            class: 'immich-thumb',
+                            onClick: () => openLightbox(asset, index)
+                        }, [
+                            h('img', {
+                                src: `/apps/immich_nc_app/api/assets/${asset.id}/thumbnail`,
+                                alt: asset.fileName,
+                                loading: 'lazy'
+                            })
+                        ])
+                    );
+
+                    mainContent = [
+                        h('div', { class: 'immich-main-header' }, [
+                            h('h3', null, 'All Photos'),
+                            h('span', { class: 'immich-photo-count' }, `${assets.value.length} photos`)
+                        ]),
+                        filterBar,
+                        h('div', { class: 'immich-grid' }, assetItems),
+                        assets.value.length === 0 ? h('p', { class: 'immich-no-assets' }, 'No photos found with current filters.') : null
+                    ];
                 }
 
                 if (activeView.value === 'settings') {

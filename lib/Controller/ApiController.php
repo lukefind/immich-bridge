@@ -185,6 +185,85 @@ class ApiController extends Controller {
      * @NoAdminRequired
      * @NoCSRFRequired
      *
+     * Search all assets with optional filters
+     *
+     * @return JSONResponse
+     */
+    public function searchAssets(): JSONResponse {
+        try {
+            $filters = [];
+            
+            if ($this->request->getParam('isFavorite') === 'true') {
+                $filters['isFavorite'] = true;
+            }
+            if ($rating = $this->request->getParam('rating')) {
+                $filters['rating'] = (int)$rating;
+            }
+            if ($tagId = $this->request->getParam('tagId')) {
+                // Get assets by tag
+                $assets = $this->immichClient->getAssetsByTag($tagId);
+                return new JSONResponse([
+                    'assets' => array_map(fn($a) => [
+                        'id' => $a['id'] ?? '',
+                        'fileName' => $a['originalFileName'] ?? $a['originalPath'] ?? 'Unknown',
+                        'type' => $a['type'] ?? 'IMAGE',
+                    ], $assets)
+                ]);
+            }
+
+            $page = (int)($this->request->getParam('page', 1));
+            $size = (int)($this->request->getParam('size', 100));
+
+            $result = $this->immichClient->searchAssets($filters, $page, $size);
+            
+            $assets = $result['assets']['items'] ?? $result['items'] ?? $result ?? [];
+            
+            return new JSONResponse([
+                'assets' => array_map(fn($a) => [
+                    'id' => $a['id'] ?? '',
+                    'fileName' => $a['originalFileName'] ?? $a['originalPath'] ?? 'Unknown',
+                    'type' => $a['type'] ?? 'IMAGE',
+                    'isFavorite' => $a['isFavorite'] ?? false,
+                    'rating' => $a['rating'] ?? 0,
+                ], $assets),
+                'total' => $result['assets']['total'] ?? $result['total'] ?? count($assets),
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to search assets: ' . $e->getMessage(), [
+                'app' => 'immich_bridge',
+            ]);
+            return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_GATEWAY);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     *
+     * Get all tags
+     *
+     * @return JSONResponse
+     */
+    public function getTags(): JSONResponse {
+        try {
+            $tags = $this->immichClient->listTags();
+            return new JSONResponse(array_map(fn($t) => [
+                'id' => $t['id'] ?? '',
+                'name' => $t['name'] ?? $t['value'] ?? 'Unknown',
+                'value' => $t['value'] ?? $t['name'] ?? '',
+            ], $tags));
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to fetch tags: ' . $e->getMessage(), [
+                'app' => 'immich_bridge',
+            ]);
+            return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_GATEWAY);
+        }
+    }
+
+    /**
+     * @NoAdminRequired
+     * @NoCSRFRequired
+     *
      * Get preview-sized image for an asset (used by the lightbox)
      *
      * @param string $assetId

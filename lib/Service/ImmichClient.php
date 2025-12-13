@@ -169,6 +169,56 @@ class ImmichClient {
     }
 
     /**
+     * Search/list all assets with optional filters
+     *
+     * @param array $filters Optional filters (isFavorite, rating, takenAfter, takenBefore, etc.)
+     * @param int $page Page number (1-indexed)
+     * @param int $size Page size
+     * @return array
+     */
+    public function searchAssets(array $filters = [], int $page = 1, int $size = 100): array {
+        $params = [
+            'page' => $page,
+            'size' => $size,
+            'order' => 'desc',
+        ];
+
+        if (isset($filters['isFavorite']) && $filters['isFavorite']) {
+            $params['isFavorite'] = 'true';
+        }
+        if (isset($filters['rating']) && $filters['rating'] > 0) {
+            $params['rating'] = (int)$filters['rating'];
+        }
+        if (!empty($filters['takenAfter'])) {
+            $params['takenAfter'] = $filters['takenAfter'];
+        }
+        if (!empty($filters['takenBefore'])) {
+            $params['takenBefore'] = $filters['takenBefore'];
+        }
+
+        return $this->get('search/metadata?' . http_build_query($params));
+    }
+
+    /**
+     * Get all tags
+     *
+     * @return array
+     */
+    public function listTags(): array {
+        return $this->get('tags');
+    }
+
+    /**
+     * Get assets by tag
+     *
+     * @param string $tagId
+     * @return array
+     */
+    public function getAssetsByTag(string $tagId): array {
+        return $this->get('tags/' . urlencode($tagId) . '/assets');
+    }
+
+    /**
      * Get thumbnail for an asset
      *
      * @param string $assetId
