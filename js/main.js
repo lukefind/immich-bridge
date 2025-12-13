@@ -171,6 +171,7 @@ const ImmichBridgeApp = {
                 const params = new URLSearchParams();
                 if (photoFilter.isFavorite) params.set('isFavorite', 'true');
                 if (photoFilter.year) params.set('year', photoFilter.year);
+                if (photoFilter.rating) params.set('rating', photoFilter.rating);
                 
                 const result = await api(`/albums/timeline?${params.toString()}`);
                 assets.value = result.assets || [];
@@ -183,6 +184,13 @@ const ImmichBridgeApp = {
                         if (year > 1970) years.add(year);
                     }
                 });
+                // Add common years if we don't have data yet
+                if (years.size === 0) {
+                    const currentYear = new Date().getFullYear();
+                    for (let y = currentYear; y >= currentYear - 20; y--) {
+                        years.add(y);
+                    }
+                }
                 availableYears.value = Array.from(years).sort((a, b) => b - a);
             } catch (err) {
                 error.value = err.message;
@@ -532,9 +540,29 @@ const ImmichBridgeApp = {
 
                 // All Photos view with filters
                 if (activeView.value === 'photos' && configured.value) {
-                    // Timeline slider (year selector)
-                    const timelineSlider = availableYears.value.length > 0 ? h('div', { class: 'immich-timeline-slider' }, [
-                        h('span', { class: 'immich-timeline-label' }, 'Year:'),
+                    // Rating filter (1-5 stars)
+                    const ratingFilter = h('div', { class: 'immich-rating-filter' }, [
+                        h('span', { class: 'immich-filter-label' }, 'Rating:'),
+                        h('select', {
+                            class: 'immich-select',
+                            value: photoFilter.rating || '',
+                            onChange: (e) => {
+                                photoFilter.rating = e.target.value ? parseInt(e.target.value) : 0;
+                                loadAllPhotos();
+                            }
+                        }, [
+                            h('option', { value: '' }, 'Any'),
+                            h('option', { value: '1' }, '★+'),
+                            h('option', { value: '2' }, '★★+'),
+                            h('option', { value: '3' }, '★★★+'),
+                            h('option', { value: '4' }, '★★★★+'),
+                            h('option', { value: '5' }, '★★★★★'),
+                        ])
+                    ]);
+
+                    // Year filter
+                    const yearFilter = h('div', { class: 'immich-year-filter' }, [
+                        h('span', { class: 'immich-filter-label' }, 'Year:'),
                         h('select', {
                             class: 'immich-select',
                             value: photoFilter.year || '',
@@ -546,7 +574,7 @@ const ImmichBridgeApp = {
                             h('option', { value: '' }, 'All'),
                             ...availableYears.value.map(year => h('option', { value: year }, year))
                         ])
-                    ]) : null;
+                    ]);
 
                     const filterBar = h('div', { class: 'immich-filter-bar' }, [
                         h('label', { class: 'immich-filter-checkbox' }, [
@@ -555,13 +583,14 @@ const ImmichBridgeApp = {
                                 checked: photoFilter.isFavorite,
                                 onChange: (e) => { photoFilter.isFavorite = e.target.checked; loadAllPhotos(); }
                             }),
-                            'Favorites only'
+                            'Favorites'
                         ]),
-                        timelineSlider,
-                        (photoFilter.isFavorite || photoFilter.year) ? h('button', {
+                        ratingFilter,
+                        yearFilter,
+                        (photoFilter.isFavorite || photoFilter.year || photoFilter.rating) ? h('button', {
                             class: 'immich-filter-btn',
-                            onClick: () => { photoFilter.isFavorite = false; photoFilter.year = null; loadAllPhotos(); }
-                        }, 'Clear filters') : null
+                            onClick: () => { photoFilter.isFavorite = false; photoFilter.year = null; photoFilter.rating = 0; loadAllPhotos(); }
+                        }, 'Clear') : null
                     ]);
 
                     const assetItems = assets.value.map((asset, index) =>

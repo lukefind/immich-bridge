@@ -193,76 +193,60 @@ class ApiController extends Controller {
         try {
             $isFavorite = $this->request->getParam('isFavorite') === 'true';
             $yearFilter = $this->request->getParam('year');
+            $ratingFilter = $this->request->getParam('rating');
+            $page = (int)($this->request->getParam('page') ?? 1);
+            $size = 500; // Get more assets per request
             
-            // Get all albums and collect assets, limiting per album to get variety
-            $albums = $this->immichClient->listAlbums();
-            $allAssets = [];
-            $seenIds = [];
-            $maxTotal = 200;
-            $maxPerAlbum = 20; // Limit per album to get variety
-            
-            // Sort albums by most recently updated
-            usort($albums, function($a, $b) {
-                $aTime = strtotime($a['updatedAt'] ?? $a['createdAt'] ?? '1970-01-01');
-                $bTime = strtotime($b['updatedAt'] ?? $b['createdAt'] ?? '1970-01-01');
-                return $bTime - $aTime;
-            });
-            
-            // First pass: get limited assets from each album for variety
-            foreach ($albums as $album) {
-                if (count($allAssets) >= $maxTotal) break;
-                
-                $albumId = $album['id'] ?? null;
-                if (!$albumId) continue;
-                
-                try {
-                    $albumData = $this->immichClient->getAlbum($albumId);
-                    $assets = $albumData['assets'] ?? [];
-                    $addedFromAlbum = 0;
-                    
-                    foreach ($assets as $asset) {
-                        if (count($allAssets) >= $maxTotal) break;
-                        if ($addedFromAlbum >= $maxPerAlbum) break;
-                        
-                        $assetId = $asset['id'] ?? null;
-                        if (!$assetId || isset($seenIds[$assetId])) continue;
-                        
-                        // Filter by favorite if requested
-                        if ($isFavorite && empty($asset['isFavorite'])) continue;
-                        
-                        // Get file date for sorting and filtering
-                        $fileDate = $asset['fileCreatedAt'] ?? $asset['createdAt'] ?? null;
-                        
-                        // Filter by year if requested
-                        if ($yearFilter && $fileDate) {
-                            $assetYear = date('Y', strtotime($fileDate));
-                            if ($assetYear !== $yearFilter) continue;
-                        }
-                        
-                        $seenIds[$assetId] = true;
-                        $addedFromAlbum++;
-                        
-                        $allAssets[] = [
-                            'id' => $assetId,
-                            'fileName' => $asset['originalFileName'] ?? $asset['originalPath'] ?? $assetId,
-                            'type' => $asset['type'] ?? 'IMAGE',
-                            'isFavorite' => $asset['isFavorite'] ?? false,
-                            'fileDate' => $fileDate,
-                        ];
-                    }
-                } catch (\Exception $e) {
-                    continue;
-                }
+            // Build filters for search/metadata API
+            $filters = [];
+            if ($isFavorite) {
+                $filters['isFavorite'] = true;
+            }
+            if ($ratingFilter) {
+                $filters['rating'] = (int)$ratingFilter;
+            }
+            if ($yearFilter) {
+                $filters['takenAfter'] = $yearFilter . '-01-01T00:00:00.000Z';
+                $filters['takenBefore'] = $yearFilter . '-12-31T23:59:59.999Z';
             }
             
-            // Sort by file date descending (newest first)
-            usort($allAssets, function($a, $b) {
-                $aTime = strtotime($a['fileDate'] ?? '1970-01-01');
-                $bTime = strtotime($b['fileDate'] ?? '1970-01-01');
-                return $bTime - $aTime;
-            });
+            // Use search/metadata API for faster, filtered results
+            $result = $this->immichClient->searchMetadata($filters, $page, $size);
             
-            return new JSONResponse(['assets' => $allAssets]);
+            // Extract assets from response
+            $assets = $result['assets']['items'] ?? $result['items'] ?? $result['assets'] ?? [];
+            if (!is_array($assets)) {
+                $assets = [];
+            }
+            
+            // Map to our format
+            $allAssets = [];
+            foreach ($assets as $asset) {
+                $assetId = $asset['id'] ?? null;
+                if (!$assetId) continue;
+                
+                $fileDate = $asset['fileCreatedAt'] ?? $asset['localDateTime'] ?? $asset['createdAt'] ?? null;
+                
+                $allAssets[] = [
+                    'id' => $assetId,
+                    'fileName' => $asset['originalFileName'] ?? $asset['originalPath'] ?? $assetId,
+                    'type' => $asset['type'] ?? 'IMAGE',
+                    'isFavorite' => $asset['isFavorite'] ?? false,
+                    'rating' => $asset['rating'] ?? 0,
+                    'fileDate' => $fileDate,
+                ];
+            }
+            
+            // Get total count and pagination info
+            $total = $result['assets']['total'] ?? $result['total'] ?? count($allAssets);
+            $hasMore = count($allAssets) >= $size;
+            
+            return new JSONResponse([
+                'assets' => $allAssets,
+                'total' => $total,
+                'page' => $page,
+                'hasMore' => $hasMore,
+            ]);
         } catch (\Exception $e) {
             $this->logger->error('Failed to get timeline assets: ' . $e->getMessage(), [
                 'app' => 'immich_bridge',

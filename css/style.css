@@ -367,15 +367,19 @@
     flex-wrap: wrap;
 }
 
-.immich-timeline-slider {
+.immich-timeline-slider,
+.immich-rating-filter,
+.immich-year-filter {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.immich-timeline-label {
+.immich-timeline-label,
+.immich-filter-label {
     font-size: 13px;
     color: var(--color-text-maxcontrast, #888);
+    white-space: nowrap;
 }
 
 .immich-filter-checkbox {
