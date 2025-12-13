@@ -157,3 +157,7 @@ If a route “should exist” but you still get HTML 404 or method mismatch:
 - Observed: Loading full original is too slow/large for lightbox viewing.
   - Root cause: Original files can be many MB.
   - Fix: Use Immich `GET /assets/{id}/thumbnail?size=preview` which returns ~1440px large preview (~100-500KB). This is the correct Immich API parameter per their docs.
+- Observed: Lightbox action buttons rendered with blue background (looked bad).
+  - Root cause: Nextcloud or browser default button styles overriding custom styles.
+  - Fix: Use `!important` on background/border/color and dark pill-shaped design with blur backdrop.
+- Added All Photos view with filters (favorites, rating, tags) using Immich search/metadata API.
