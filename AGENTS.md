@@ -144,10 +144,13 @@ If a route “should exist” but you still get HTML 404 or method mismatch:
 
 ### 2025-12-13
 - Added `/api/assets/{id}/preview` route.
-- Observed: hitting `/preview` returned Nextcloud HTML “Page not found” on the server.
+- Observed: hitting `/preview` returned Nextcloud HTML "Page not found" on the server.
   - Root cause: route not active in deployed instance (stale route cache / mismatched deployed code).
   - Fix: ensure AIO volume updated + disable/enable app + hard refresh.
 - Added lightbox image fallback chain to avoid blank lightbox if preview route is unavailable.
 - Observed: lightbox overlay can still appear behind the Nextcloud top bar even with high `z-index`.
   - Root cause: stacking context / transformed parent inside Nextcloud layout.
   - Fix: Teleport the lightbox to `document.body`.
+- Observed: Immich `?size=preview` and `?key=preview` parameters return small thumbnails (~14KB) not large previews.
+  - Root cause: Immich thumbnail endpoint doesn't reliably support preview size variants across versions.
+  - Fix: Load `/original` directly in lightbox for guaranteed full quality. Accept the larger file size tradeoff.
