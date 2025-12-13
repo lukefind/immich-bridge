@@ -452,13 +452,21 @@ class ApiController extends Controller {
             // Get user's folder
             $userFolder = $this->rootFolder->getUserFolder($userId);
             
-            // Ensure target path exists and get the folder
+            // Ensure target path exists and get the folder (create if needed)
             $targetPath = trim($targetPath, '/');
             if (empty($targetPath)) {
                 $folder = $userFolder;
             } else {
+                // Create folder path recursively if it doesn't exist
                 if (!$userFolder->nodeExists($targetPath)) {
-                    return new JSONResponse(['error' => 'Target folder does not exist'], Http::STATUS_BAD_REQUEST);
+                    $parts = explode('/', $targetPath);
+                    $currentPath = '';
+                    foreach ($parts as $part) {
+                        $currentPath = $currentPath ? $currentPath . '/' . $part : $part;
+                        if (!$userFolder->nodeExists($currentPath)) {
+                            $userFolder->newFolder($currentPath);
+                        }
+                    }
                 }
                 $folder = $userFolder->get($targetPath);
                 if ($folder->getType() !== \OCP\Files\FileInfo::TYPE_FOLDER) {

@@ -18,7 +18,8 @@ const ImmichBridgeApp = {
 
         const activeView = ref('albums');
         const albumSearch = ref('');
-        const albumSort = ref('name');
+        const albumSort = ref('newest'); // Default to newest first
+        const albumSortAsc = ref(false); // false = descending (newest first)
 
         // All Photos filters
         const photoFilter = reactive({
@@ -520,15 +521,22 @@ const ImmichBridgeApp = {
                         : albums.value.filter(a => (a.title || '').toLowerCase().includes(q));
 
                     const sortedAlbums = [...filteredAlbums].sort((a, b) => {
+                        let result = 0;
                         if (albumSort.value === 'count') {
-                            return (b.assetCount || 0) - (a.assetCount || 0);
-                        }
-                        if (albumSort.value === 'date') {
+                            result = (b.assetCount || 0) - (a.assetCount || 0);
+                        } else if (albumSort.value === 'newest') {
+                            // Sort by most recent photo in album
+                            const ad = new Date(a.endDate || a.updatedAt || a.createdAt || 0).getTime();
+                            const bd = new Date(b.endDate || b.updatedAt || b.createdAt || 0).getTime();
+                            result = bd - ad;
+                        } else if (albumSort.value === 'updated') {
                             const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
                             const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
-                            return bd - ad;
+                            result = bd - ad;
+                        } else {
+                            result = String(a.title || '').localeCompare(String(b.title || ''));
                         }
-                        return String(a.title || '').localeCompare(String(b.title || ''));
+                        return albumSortAsc.value ? -result : result;
                     });
 
                     const albumItems = sortedAlbums.map(album =>
@@ -553,15 +561,24 @@ const ImmichBridgeApp = {
                                     placeholder: 'Search albums…',
                                     onInput: (e) => { albumSearch.value = e.target.value; }
                                 }),
-                                h('select', {
-                                    class: 'immich-select',
-                                    value: albumSort.value,
-                                    onChange: (e) => { albumSort.value = e.target.value; }
-                                }, [
-                                    h('option', { value: 'name' }, 'Name'),
-                                    h('option', { value: 'date' }, 'Date'),
-                                    h('option', { value: 'count' }, 'Count'),
-                                ]),
+                                h('div', { class: 'immich-sort-group' }, [
+                                    h('select', {
+                                        class: 'immich-select',
+                                        value: albumSort.value,
+                                        onChange: (e) => { albumSort.value = e.target.value; },
+                                        title: 'Sort by'
+                                    }, [
+                                        h('option', { value: 'newest' }, 'Newest Photos'),
+                                        h('option', { value: 'updated' }, 'Recently Updated'),
+                                        h('option', { value: 'name' }, 'Name'),
+                                        h('option', { value: 'count' }, 'Photo Count'),
+                                    ]),
+                                    h('button', {
+                                        class: 'immich-sort-dir',
+                                        onClick: () => { albumSortAsc.value = !albumSortAsc.value; },
+                                        title: albumSortAsc.value ? 'Ascending (oldest first)' : 'Descending (newest first)'
+                                    }, albumSortAsc.value ? '↑' : '↓')
+                                ])
                             ]),
                             h('ul', null, albumItems),
                             sortedAlbums.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No matching albums.') : null
@@ -580,15 +597,24 @@ const ImmichBridgeApp = {
                                             placeholder: 'Search albums…',
                                             onInput: (e) => { albumSearch.value = e.target.value; }
                                         }),
-                                        h('select', {
-                                            class: 'immich-select',
-                                            value: albumSort.value,
-                                            onChange: (e) => { albumSort.value = e.target.value; }
-                                        }, [
-                                            h('option', { value: 'name' }, 'Name'),
-                                            h('option', { value: 'date' }, 'Date'),
-                                            h('option', { value: 'count' }, 'Count'),
-                                        ]),
+                                        h('div', { class: 'immich-sort-group' }, [
+                                            h('select', {
+                                                class: 'immich-select',
+                                                value: albumSort.value,
+                                                onChange: (e) => { albumSort.value = e.target.value; },
+                                                title: 'Sort by'
+                                            }, [
+                                                h('option', { value: 'newest' }, 'Newest Photos'),
+                                                h('option', { value: 'updated' }, 'Recently Updated'),
+                                                h('option', { value: 'name' }, 'Name'),
+                                                h('option', { value: 'count' }, 'Photo Count'),
+                                            ]),
+                                            h('button', {
+                                                class: 'immich-sort-dir',
+                                                onClick: () => { albumSortAsc.value = !albumSortAsc.value; },
+                                                title: albumSortAsc.value ? 'Ascending (oldest first)' : 'Descending (newest first)'
+                                            }, albumSortAsc.value ? '↑' : '↓')
+                                        ])
                                     ]),
                                     h('ul', { class: 'immich-album-list' }, albumItems),
                                     sortedAlbums.length === 0 ? h('p', { class: 'immich-no-albums' }, 'No matching albums.') : null
