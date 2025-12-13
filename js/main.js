@@ -433,7 +433,7 @@ const ImmichBridgeApp = {
             // Lightbox modal
             if (lightboxOpen.value && lightboxAsset.value) {
                 const base = `/apps/immich_nc_app/api/assets/${lightboxAsset.value.id}`;
-                const previewSrc = `${base}/preview`;
+                const previewSrc = `${base}/thumbnail?key=preview`;
                 const thumbSrc = `${base}/thumbnail`;
                 const originalSrc = `${base}/original`;
                 const candidates = [previewSrc, thumbSrc, originalSrc];

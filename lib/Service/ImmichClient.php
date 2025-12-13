@@ -178,6 +178,23 @@ class ImmichClient {
         return $this->getBinary('assets/' . urlencode($assetId) . '/thumbnail');
     }
 
+    public function streamThumbnailVariant(string $assetId, string $key = '', string $format = ''): array {
+        $params = [];
+        if ($key !== '') {
+            $params['key'] = $key;
+        }
+        if ($format !== '') {
+            $params['format'] = $format;
+        }
+
+        $endpoint = 'assets/' . urlencode($assetId) . '/thumbnail';
+        if (!empty($params)) {
+            $endpoint .= '?' . http_build_query($params);
+        }
+
+        return $this->getBinary($endpoint);
+    }
+
     /**
      * Get preview image for an asset (larger than grid thumbnail)
      *

@@ -270,7 +270,16 @@ class ApiController extends Controller {
      */
     public function getThumbnail(string $assetId): DataDisplayResponse|JSONResponse {
         try {
-            $result = $this->immichClient->streamThumbnail($assetId);
+            $key = (string) $this->request->getParam('key', '');
+            $format = (string) $this->request->getParam('format', '');
+
+            try {
+                $result = ($key !== '' || $format !== '')
+                    ? $this->immichClient->streamThumbnailVariant($assetId, $key, $format)
+                    : $this->immichClient->streamThumbnail($assetId);
+            } catch (\Exception $e) {
+                $result = $this->immichClient->streamThumbnail($assetId);
+            }
 
             $response = new DataDisplayResponse($result['body']);
             $response->addHeader('Content-Type', $result['contentType']);
